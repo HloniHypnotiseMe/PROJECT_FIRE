@@ -1,0 +1,7 @@
+# PROJECT FIRE — Python 3.9+
+#
+# FIRE is pure standard library. This file intentionally installs nothing;
+# it exists so the documented quickstart (`pip install -r requirements.txt`)
+# succeeds on a fresh machine.
+#
+# If a future module adds a dependency, add it here and update the README.
