@@ -1,0 +1,262 @@
+{
+  "objective": {
+    "raw": "Find the highest-potential business opportunity that can be validated quickly in South Africa and has a credible path toward scalable recurring revenue.",
+    "intent": "find",
+    "departments": [
+      "finance",
+      "engineering",
+      "product",
+      "strategy",
+      "academic"
+    ],
+    "stages": [
+      "discover",
+      "validate",
+      "design"
+    ],
+    "keywords": [
+      "find",
+      "highest-potential",
+      "business",
+      "opportunity",
+      "validated",
+      "quickly",
+      "south",
+      "africa",
+      "credible",
+      "path",
+      "toward",
+      "scalable",
+      "recurring",
+      "revenue"
+    ],
+    "constraints": {
+      "location": "South Africa",
+      "recurring": true
+    },
+    "deliverable": "Opportunity ranking with evidence, economics, validation experiment, kill/scale criteria"
+  },
+  "team": [
+    {
+      "agent_id": "specialized.agents-orchestrator",
+      "name": "Agents Orchestrator",
+      "department": "specialized",
+      "role": "orchestrator",
+      "matched_terms": [
+        "orchestration"
+      ],
+      "score": 10.0
+    },
+    {
+      "agent_id": "finance.financial-analyst",
+      "name": "Financial Analyst",
+      "department": "finance",
+      "role": "executor",
+      "matched_terms": [
+        "analysis",
+        "business",
+        "finance",
+        "forecasting"
+      ],
+      "score": 24.779
+    },
+    {
+      "agent_id": "engineering.rapid-prototyper",
+      "name": "Rapid Prototyper",
+      "department": "engineering",
+      "role": "executor",
+      "matched_terms": [
+        "architecture",
+        "mvp",
+        "prototype"
+      ],
+      "score": 39.106
+    },
+    {
+      "agent_id": "product.sprint-prioritizer",
+      "name": "Sprint Prioritizer",
+      "department": "product",
+      "role": "executor",
+      "matched_terms": [
+        "business",
+        "management",
+        "prioritization",
+        "product"
+      ],
+      "score": 15.709
+    },
+    {
+      "agent_id": "academic.statistician",
+      "name": "Statistician",
+      "department": "academic",
+      "role": "executor",
+      "matched_terms": [
+        "analysis",
+        "credible",
+        "path",
+        "research"
+      ],
+      "score": 16.362
+    },
+    {
+      "agent_id": "testing.reality-checker",
+      "name": "Reality Checker",
+      "department": "testing",
+      "role": "quality-gate",
+      "matched_terms": [
+        "quality"
+      ],
+      "score": 9.0
+    }
+  ],
+  "workflow": {
+    "mission": "Find the highest-potential business opportunity that can be validated quickly in South Africa and has a credible path toward scalable recurring revenue.",
+    "steps": [
+      {
+        "phase": "discover",
+        "step": 1,
+        "agent_id": "specialized.agents-orchestrator",
+        "role": "orchestrator",
+        "task": "Define mission, sequence agents, set success criteria",
+        "deliverable": "Mission brief + orchestration plan"
+      },
+      {
+        "phase": "discover",
+        "step": 2,
+        "agent_id": "finance.financial-analyst",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "discover",
+        "step": 3,
+        "agent_id": "engineering.rapid-prototyper",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "discover",
+        "step": 4,
+        "agent_id": "product.sprint-prioritizer",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "discover",
+        "step": 5,
+        "agent_id": "academic.statistician",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "discover",
+        "step": 6,
+        "agent_id": "testing.reality-checker",
+        "role": "quality-gate",
+        "task": "Independently review outputs against evidence and economics",
+        "deliverable": "GO / REVISE / NO-GO evaluation"
+      },
+      {
+        "phase": "validate",
+        "step": 7,
+        "agent_id": "specialized.agents-orchestrator",
+        "role": "orchestrator",
+        "task": "Define mission, sequence agents, set success criteria",
+        "deliverable": "Mission brief + orchestration plan"
+      },
+      {
+        "phase": "validate",
+        "step": 8,
+        "agent_id": "finance.financial-analyst",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "validate",
+        "step": 9,
+        "agent_id": "engineering.rapid-prototyper",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "validate",
+        "step": 10,
+        "agent_id": "product.sprint-prioritizer",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "validate",
+        "step": 11,
+        "agent_id": "academic.statistician",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "validate",
+        "step": 12,
+        "agent_id": "testing.reality-checker",
+        "role": "quality-gate",
+        "task": "Independently review outputs against evidence and economics",
+        "deliverable": "GO / REVISE / NO-GO evaluation"
+      },
+      {
+        "phase": "design",
+        "step": 13,
+        "agent_id": "specialized.agents-orchestrator",
+        "role": "orchestrator",
+        "task": "Define mission, sequence agents, set success criteria",
+        "deliverable": "Mission brief + orchestration plan"
+      },
+      {
+        "phase": "design",
+        "step": 14,
+        "agent_id": "finance.financial-analyst",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 15,
+        "agent_id": "engineering.rapid-prototyper",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 16,
+        "agent_id": "product.sprint-prioritizer",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 17,
+        "agent_id": "academic.statistician",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 18,
+        "agent_id": "testing.reality-checker",
+        "role": "quality-gate",
+        "task": "Independently review outputs against evidence and economics",
+        "deliverable": "GO / REVISE / NO-GO evaluation"
+      }
+    ]
+  },
+  "mission_id": "M-CE71BE75"
+}

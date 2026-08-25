@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local runtime noise (kept small on purpose; memory IS versioned)
+# memory/events.jsonl and missions.jsonl are small and versioned.

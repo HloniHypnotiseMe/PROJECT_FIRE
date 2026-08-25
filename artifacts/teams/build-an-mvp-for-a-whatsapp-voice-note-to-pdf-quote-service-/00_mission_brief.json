@@ -1,0 +1,178 @@
+{
+  "mission": "Build an MVP for a WhatsApp voice-note to PDF quote service for South African tradespeople priced at R199 per month",
+  "objective": {
+    "raw": "Build an MVP for a WhatsApp voice-note to PDF quote service for South African tradespeople priced at R199 per month",
+    "intent": "build",
+    "departments": [
+      "engineering",
+      "sales",
+      "finance",
+      "product"
+    ],
+    "stages": [
+      "design",
+      "build"
+    ],
+    "keywords": [
+      "mvp",
+      "whatsapp",
+      "voice-note",
+      "pdf",
+      "quote",
+      "service",
+      "south",
+      "african",
+      "tradespeople",
+      "priced",
+      "r199",
+      "per",
+      "month"
+    ],
+    "constraints": {
+      "price_zar": 199.0,
+      "location": "South Africa",
+      "cadence": "monthly"
+    },
+    "deliverable": "MVP build plan + day-1 code + launch checklist"
+  },
+  "workflow": {
+    "mission": "Build an MVP for a WhatsApp voice-note to PDF quote service for South African tradespeople priced at R199 per month",
+    "steps": [
+      {
+        "phase": "design",
+        "step": 1,
+        "agent_id": "specialized.agents-orchestrator",
+        "role": "orchestrator",
+        "task": "Define mission, sequence agents, set success criteria",
+        "deliverable": "Mission brief + orchestration plan"
+      },
+      {
+        "phase": "design",
+        "step": 2,
+        "agent_id": "engineering.rapid-prototyper",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 3,
+        "agent_id": "sales.proposal-strategist",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 4,
+        "agent_id": "finance.fpa-analyst",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 5,
+        "agent_id": "product.sprint-prioritizer",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "design",
+        "step": 6,
+        "agent_id": "testing.reality-checker",
+        "role": "quality-gate",
+        "task": "Independently review outputs against evidence and economics",
+        "deliverable": "GO / REVISE / NO-GO evaluation"
+      },
+      {
+        "phase": "build",
+        "step": 7,
+        "agent_id": "specialized.agents-orchestrator",
+        "role": "orchestrator",
+        "task": "Define mission, sequence agents, set success criteria",
+        "deliverable": "Mission brief + orchestration plan"
+      },
+      {
+        "phase": "build",
+        "step": 8,
+        "agent_id": "engineering.rapid-prototyper",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "build",
+        "step": 9,
+        "agent_id": "sales.proposal-strategist",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "build",
+        "step": 10,
+        "agent_id": "finance.fpa-analyst",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "build",
+        "step": 11,
+        "agent_id": "product.sprint-prioritizer",
+        "role": "executor",
+        "task": "Execute the work for this phase with the agent's process",
+        "deliverable": "Phase deliverable per agent's workflow"
+      },
+      {
+        "phase": "build",
+        "step": 12,
+        "agent_id": "testing.reality-checker",
+        "role": "quality-gate",
+        "task": "Independently review outputs against evidence and economics",
+        "deliverable": "GO / REVISE / NO-GO evaluation"
+      }
+    ]
+  },
+  "team": [
+    {
+      "agent_id": "specialized.agents-orchestrator",
+      "role": "orchestrator",
+      "score": 10.0,
+      "source": "agents/agency-agents/specialized/agents-orchestrator.md"
+    },
+    {
+      "agent_id": "engineering.rapid-prototyper",
+      "role": "executor",
+      "score": 62.742,
+      "source": "agents/agency-agents/engineering/engineering-rapid-prototyper.md"
+    },
+    {
+      "agent_id": "sales.proposal-strategist",
+      "role": "executor",
+      "score": 24.112,
+      "source": "agents/agency-agents/sales/sales-proposal-strategist.md"
+    },
+    {
+      "agent_id": "finance.fpa-analyst",
+      "role": "executor",
+      "score": 25.919,
+      "source": "agents/agency-agents/finance/finance-fpa-analyst.md"
+    },
+    {
+      "agent_id": "product.sprint-prioritizer",
+      "role": "executor",
+      "score": 12.445,
+      "source": "agents/agency-agents/product/product-sprint-prioritizer.md"
+    },
+    {
+      "agent_id": "testing.reality-checker",
+      "role": "quality-gate",
+      "score": 9.0,
+      "source": "agents/agency-agents/testing/testing-reality-checker.md"
+    }
+  ],
+  "instructions": "Use ONLY the agents in this pack. Sequence them per the workflow. Every deliverable goes through the quality gate (GO/REVISE/NO-GO). Record results in memory before starting the next phase."
+}

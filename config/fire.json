@@ -1,0 +1,12 @@
+{
+  "root": ".",
+  "agent_library": "agents/agency-agents",
+  "registry_file": "registry/agent_registry.json",
+  "memory_dir": "memory",
+  "reports_dir": "reports",
+  "artifacts_dir": "artifacts",
+  "dashboard_dir": "control_room",
+  "north_star_daily_zar": 1000000,
+  "currency": "ZAR",
+  "max_team_size": 6
+}

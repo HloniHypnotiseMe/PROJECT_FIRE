@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PROJECT FIRE — Control Room</title><style>
+:root{--bg:#0b0f1a;--panel:#111827;--line:#1f2937;--txt:#e5e7eb;--mut:#9ca3af;
+--acc:#f59e0b;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--blue:#60a5fa;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;padding:24px}
+header{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:20px}
+h1{font-size:22px;letter-spacing:2px}
+h1 .dot{color:var(--acc)}
+.tag{color:var(--mut);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card .num{font-size:26px;font-weight:700;color:var(--acc)}
+.card .lbl{color:var(--mut);font-size:12px;margin-top:4px}
+.card .sub{color:var(--mut);font-size:11px;margin-top:2px}
+h2{font-size:15px;margin:20px 0 10px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--mut);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:8px 10px;border-bottom:1px solid #161f2f;vertical-align:top}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;border:1px solid var(--line);margin:1px 2px}
+.warnbox{border-left:3px solid var(--warn);background:#1c1917;padding:10px 14px;border-radius:6px;font-size:12px;margin:8px 0;color:#fde68a}
+footer{margin-top:28px;color:var(--mut);font-size:11px;border-top:1px solid var(--line);padding-top:12px}
+</style></head>
+<body>
+<header><h1><span class="dot">FIRE</span> CONTROL ROOM</h1>
+<span class="tag">AI Business Operating System · v0.1.0</span>
+<span class="tag">GITHUB = canonical fabric · LOCAL = control node · RUNTIME = on-demand</span></header>
+
+<div class="grid"><div class="card"><div class="num">AGENTS INDEXED</div><div class="lbl">270</div><div class="sub">17 divisions</div></div><div class="card"><div class="num">STAGE TAGS</div><div class="lbl">1355</div><div class="sub">lifecycle mappings</div></div><div class="card"><div class="num">OPPORTUNITIES</div><div class="lbl">14</div><div class="sub">scored &amp; ranked</div></div><div class="card"><div class="num">TOP SCORE</div><div class="lbl">6.7</div><div class="sub">Loom -&gt; SOP Generator (Global)</div></div><div class="card"><div class="num">PORTFOLIO MRR (model)</div><div class="lbl">R2,740</div><div class="sub">hypothesis, not realised</div></div><div class="card"><div class="num">NORTH STAR</div><div class="lbl">R1,000,000/day</div><div class="sub">capacity target</div></div></div>
+
+<div class="warnbox">⚠️ All revenue figures are HYPOTHESIS / CAPACITY MODEL values, not realised
+revenue. FIRE's reality engine gates every claim before it is marked as achieved.</div>
+
+<h2>System Health — Registry</h2>
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+<div class="card"><h2 style="margin:0 0 8px">Divisions</h2>
+<table><tr><th>Department</th><th>Agents</th></tr><tr><td>engineering</td><td>58</td></tr><tr><td>specialized</td><td>57</td></tr><tr><td>marketing</td><td>36</td></tr><tr><td>game-development</td><td>21</td></tr><tr><td>gis</td><td>13</td></tr><tr><td>security</td><td>12</td></tr><tr><td>design</td><td>10</td></tr><tr><td>sales</td><td>9</td></tr><tr><td>testing</td><td>9</td></tr><tr><td>paid-media</td><td>7</td></tr><tr><td>project-management</td><td>7</td></tr><tr><td>academic</td><td>6</td></tr><tr><td>spatial-computing</td><td>6</td></tr><tr><td>support</td><td>6</td></tr><tr><td>finance</td><td>5</td></tr><tr><td>product</td><td>5</td></tr><tr><td>healthcare</td><td>3</td></tr></table></div>
+<div class="card"><h2 style="margin:0 0 8px">Active Missions</h2>
+<table><tr><th>ID</th><th>Objective</th><th>Status</th></tr><tr><td class="mono">M-C598CDD1</td><td>Find the highest-potential business opportunity that can be validated quickly in South Afr</td><td>running</td></tr><tr><td class="mono">M-4EFDED35</td><td>Find the highest-potential business opportunity that can be validated quickly in South Afr</td><td>running</td></tr><tr><td class="mono">M-DFD8F69C</td><td>Find the highest-potential business opportunity that can be validated quickly in South Afr</td><td>running</td></tr></table></div>
+</div>
+
+<h2>Opportunity Ranking (hypothesis scores)</h2>
+<table><tr><th>#</th><th>Opportunity</th><th>Score</th><th>Why</th><th>Pricing</th></tr><tr><td class="mono">1</td><td>Loom -&gt; SOP Generator (Global)</td><td class="warn">6.66</td><td>recurring revenue shape, scales well, large addressable market, high pain, highly automatable</td><td class="mono">$15/month per seat; $99/year</td></tr><tr><td class="mono">2</td><td>WhatsApp Voice-Note -&gt; Quote for Tradespeople</td><td class="warn">6.64</td><td>high pain, recurring revenue shape, highly automatable, fast to MVP, time-sensitive problem</td><td class="mono">R199/month subscription (per trade business)</td></tr><tr><td class="mono">3</td><td>Content Repurposing Pipeline</td><td class="warn">6.59</td><td>recurring revenue shape, large addressable market, scales well, high pain, highly automatable</td><td class="mono">$29/mo or R349/mo</td></tr><tr><td class="mono">4</td><td>No-Show Reminder for Small Medical Practices</td><td class="warn">6.51</td><td>recurring revenue shape, high pain, highly automatable, proven willingness to pay, scales well</td><td class="mono">R249/mo per practice</td></tr><tr><td class="mono">5</td><td>CAPS-Aligned Study Material Generator</td><td class="bad">6.41</td><td>large addressable market, scales well, high pain, time-sensitive problem, highly automatable</td><td class="mono">R49 per pack; R149/mo all subjects</td></tr><tr><td class="mono">6</td><td>Google Maps Review Engine for Local SA Business</td><td class="bad">6.41</td><td>recurring revenue shape, highly automatable, high pain, fast to MVP, large addressable market</td><td class="mono">R149/mo per location</td></tr><tr><td class="mono">7</td><td>WhatsApp Booking Agent for Salons &amp; Spas</td><td class="bad">6.40</td><td>recurring revenue shape, high pain, highly automatable, large addressable market, scales well</td><td class="mono">R299/mo per salon</td></tr><tr><td class="mono">8</td><td>Tenant Demand Letter Generator</td><td class="bad">6.38</td><td>high pain, proven willingness to pay, highly automatable, high margin, time-sensitive problem</td><td class="mono">R150 per letter; R99/mo unlimited</td></tr><tr><td class="mono">9</td><td>Spaza Shop Stock &amp; Credit Ledger</td><td class="bad">6.38</td><td>high pain, recurring revenue shape, scales well, highly automatable, large addressable market</td><td class="mono">R99/mo per shop</td></tr><tr><td class="mono">10</td><td>Invoice Chaser (3% of recovered)</td><td class="bad">6.27</td><td>high pain, proven willingness to pay, highly automatable, large addressable market, scales well</td><td class="mono">3% of recovered amounts (no win, no fee)</td></tr></table>
+
+<h2>Revenue Model (per engine, hypothesis)</h2>
+<table><tr><th>Engine</th><th>MRR (model)</th><th>Profit (model)</th><th>Margin</th></tr><tr><td>WA Voice-Quote</td><td>R1,990</td><td>R1,490</td><td>74.9%</td></tr><tr><td>CV-&gt;ATS</td><td>R0</td><td>R-100</td><td>0.0%</td></tr><tr><td>Tenant Demand Letters</td><td>R0</td><td>R-50</td><td>0.0%</td></tr><tr><td>Invoice Chaser</td><td>R600</td><td>R600</td><td>100.0%</td></tr><tr><td>Loom-&gt;SOP</td><td>R150</td><td>R110</td><td>73.3%</td></tr></table>
+
+<h2>North Star — Capacity Model</h2>
+<div class="card"><div class="num">R1,000,000/day</div>
+<div class="lbl">CAPACITY TARGET — not realised revenue</div>
+<div class="sub">≈ 2000 revenue engines at R500/day each · engines_needed = target_daily / avg_daily_per_engine</div></div>
+
+<footer>PROJECT FIRE · registry index: registry/agent_registry.json · generated 2026-08-25T08:00</footer>
+</body></html>
