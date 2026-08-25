@@ -71,7 +71,8 @@ PROJECT_FIRE/
 ├── reports/               # hunt reports (opportunity_hunt.json / .md)
 ├── artifacts/teams/       # lazily materialized team packs
 ├── control_room/          # generated dashboard
-├── tests/                 # 38 unittest cases
+├── experiments/voice_quote/  # Experiment A validation kit (manual concierge)
+├── tests/                 # 40 unittest cases
 ├── config/fire.json
 └── docs/ARCHITECTURE.md
 ```

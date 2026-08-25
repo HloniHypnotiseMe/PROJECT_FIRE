@@ -139,6 +139,7 @@ class Opportunity:
     validation_experiment: str = ""
     required_agents: list = field(default_factory=list)  # agent_ids
     kill_criteria: list = field(default_factory=list)
+    optimize_criteria: list = field(default_factory=list)
     scale_criteria: list = field(default_factory=list)
     evidence: list = field(default_factory=list)         # [(source, claim)]
     economics: dict = field(default_factory=dict)        # pricing hypothesis, margin, mrr target

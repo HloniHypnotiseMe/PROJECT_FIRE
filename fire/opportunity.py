@@ -77,12 +77,14 @@ def _seed_opportunities() -> list[Opportunity]:
     def mk(oid: str, name: str, problem: str, customer: str, solution: str,
            pricing: str, distribution: str, mvp: str, scores: dict,
            validation: str, kill: list[str], scale: list[str],
-           agents: list[str], economics: dict) -> Opportunity:
+           agents: list[str], economics: dict,
+           optimize: list[str] | None = None) -> Opportunity:
         return Opportunity(
             id=oid, name=name, problem=problem, customer=customer,
             solution=solution, pricing=pricing, distribution=distribution,
             mvp=mvp, scores=scores, validation_experiment=validation,
-            kill_criteria=kill, scale_criteria=scale, required_agents=agents,
+            kill_criteria=kill, optimize_criteria=optimize or [],
+            scale_criteria=scale, required_agents=agents,
             economics=economics,
         )
 
@@ -104,10 +106,14 @@ def _seed_opportunities() -> list[Opportunity]:
             ["<5 of 10 first-touch prospects send a quote request", "no one pays after 14-day trial",
              "concierge turnaround > 30 min"],
             ["quote conversion lifts 20%+", "churn < 5%/month", "per-trade template libraries"],
-            ["engineering.rapid-prototyper", "engineering.voice-ai-integration",
-             "engineering.backend-architect", "sales.sales-engineer",
+            ["engineering.rapid-prototyper", "engineering.voice-ai-integration-engineer",
+             "engineering.backend-architect", "sales.engineer",
              "marketing.tiktok-strategist", "finance.financial-analyst"],
             {"price": 199, "currency": "ZAR", "period": "month", "mrr_target_10": 1990},
+            optimize=["5-7/10 send voice notes but 0-1 pay -> tighten offer/price ladder, 7-day trial",
+                      "turnaround 5-30 min -> rebuild template, pre-fill common line items + rates",
+                      "high response, <50% of responders send voice notes -> rewrite first-touch script",
+                      "prospects want to pay but payment is friction -> add EFT details / PayFast link"],
         ),
         mk(
             "opp-cv-ats", "CV -> ATS Optimizer for Graduates",
@@ -126,7 +132,7 @@ def _seed_opportunities() -> list[Opportunity]:
             ["<10 paid conversions from first 100 free users", "ATS pass rate not measurably higher"],
             ["referral loop: each paying grad refers 1+", "career-coaching upsell"],
             ["engineering.frontend-developer", "specialized.recruitment-specialist",
-             "marketing.carousel-growth-engine", "product.product-manager",
+             "marketing.carousel-growth-engine", "product.manager",
              "marketing.tiktok-strategist"],
             {"price": 99, "currency": "ZAR", "period": "one-off", "target_20": 1980},
         ),
@@ -147,7 +153,7 @@ def _seed_opportunities() -> list[Opportunity]:
             ["lawyer review flags legal errors", "landlords prefer DIY templates to paying R150"],
             ["partnership with rental agencies", "escalation bundle: letter + attorney referral fee"],
             ["specialized.legal-document-review", "engineering.minimal-change-engineer",
-             "sales.sales-outbound-strategist", "marketing.seo-specialist"],
+             "sales.outbound-strategist", "marketing.seo-specialist"],
             {"price": 150, "currency": "ZAR", "period": "one-off", "target_15": 2250},
         ),
         mk(
@@ -167,7 +173,7 @@ def _seed_opportunities() -> list[Opportunity]:
             ["<40% of trials convert to paid", "SOP quality below manual baseline"],
             ["SOP library + audit trail upsell", "enterprise SSO"],
             ["engineering.ai-engineer", "support.analytics-reporter",
-             "marketing.linkedin-content-creator", "product.product-manager"],
+             "marketing.linkedin-content-creator", "product.manager"],
             {"price": 15, "currency": "USD", "period": "month", "mrr_target_10": 150},
         ),
         mk(
@@ -187,7 +193,7 @@ def _seed_opportunities() -> list[Opportunity]:
             ["<20% of chased invoices recovered", "freelancers unwilling to grant Gmail access"],
             ["commission escalates to collection partners", "API for accounting tools"],
             ["finance.bookkeeper-controller", "engineering.email-intelligence-engineer",
-             "sales.sales-engineer", "marketing.linkedin-content-creator"],
+             "sales.engineer", "marketing.linkedin-content-creator"],
             {"price": 0.03, "currency": "ZAR", "period": "percent", "target_5": 600},
         ),
         mk(
@@ -227,7 +233,7 @@ def _seed_opportunities() -> list[Opportunity]:
             ["<30 filings in season", "users still need a professional to file"],
             ["year-round bookkeeping upsell", "SARS eFiling API integration"],
             ["finance.tax-strategist", "finance.bookkeeper-controller",
-             "engineering.voice-ai-integration", "marketing.tiktok-strategist"],
+             "engineering.voice-ai-integration-engineer", "marketing.tiktok-strategist"],
             {"price": 99, "currency": "ZAR", "period": "one-off", "season_target": 2970},
         ),
         mk(
@@ -246,8 +252,8 @@ def _seed_opportunities() -> list[Opportunity]:
             "3 salons pilot for a month; measure no-show rate change and booking lift.",
             ["no-shows not reduced", "salons won't pay monthly"],
             ["multi-location chains", "deposit collection becomes the moat"],
-            ["engineering.rapid-prototyper", "engineering.voice-ai-integration",
-             "sales.sales-engineer", "marketing.social-media-strategist"],
+            ["engineering.rapid-prototyper", "engineering.voice-ai-integration-engineer",
+             "sales.engineer", "marketing.social-media-strategist"],
             {"price": 299, "currency": "ZAR", "period": "month", "mrr_target_10": 2990},
         ),
         mk(
@@ -287,7 +293,7 @@ def _seed_opportunities() -> list[Opportunity]:
             ["<30% weekly active after 30 days", "owners prefer notebooks (no trust)"],
             ["distributor prepaid bundles", "credit-scoring data asset"],
             ["finance.bookkeeper-controller", "engineering.rapid-prototyper",
-             "sales.sales-outbound-strategist", "specialized.chief-of-staff"],
+             "sales.outbound-strategist", "specialized.chief-of-staff"],
             {"price": 99, "currency": "ZAR", "period": "month", "mrr_target_20": 1980},
         ),
         mk(
@@ -306,8 +312,8 @@ def _seed_opportunities() -> list[Opportunity]:
             "2 practices for 6 weeks; measure no-show rate before/after.",
             ["no-show rate unchanged", "POPIA consent friction blocks rollout"],
             ["POPIA-compliant cloud for practices", "regional practice networks"],
-            ["healthcare.customer-service", "engineering.email-intelligence-engineer",
-             "sales.sales-engineer", "marketing.seo-specialist"],
+            ["specialized.healthcare-customer-service", "engineering.email-intelligence-engineer",
+             "sales.engineer", "marketing.seo-specialist"],
             {"price": 249, "currency": "ZAR", "period": "month", "mrr_target_5": 1245},
         ),
         mk(
@@ -326,7 +332,7 @@ def _seed_opportunities() -> list[Opportunity]:
             "Exam-season pilot (Oct); 100 packs; parent reviews on accuracy.",
             ["content errors in any reviewed pack", "parents prefer buying past papers"],
             ["school licences", "tutor marketplace attachment"],
-            ["academic.educator", "product.product-manager", "marketing.seo-specialist",
+            ["specialized.corporate-training-designer", "product.manager", "marketing.seo-specialist",
              "engineering.rapid-prototyper"],
             {"price": 149, "currency": "ZAR", "period": "month", "mrr_target_50": 7450},
         ),
@@ -346,8 +352,8 @@ def _seed_opportunities() -> list[Opportunity]:
             "50 freelancers; measure reply-rate lift vs their baseline template.",
             ["reply rate unchanged", "freelancers stop renewing after 1 month"],
             ["platform API integrations", "interview-prep upsell"],
-            ["sales.sales-proposal-strategist", "engineering.frontend-developer",
-             "marketing.growth-hacker", "product.product-manager"],
+            ["sales.proposal-strategist", "engineering.frontend-developer",
+             "marketing.growth-hacker", "product.manager"],
             {"price": 199, "currency": "ZAR", "period": "month", "mrr_target_30": 5970},
         ),
         mk(
@@ -367,7 +373,7 @@ def _seed_opportunities() -> list[Opportunity]:
             ["<+5 reviews/month avg", "owners won't share customer contact lists"],
             ["multi-location chains", "reputation bundle with listings management"],
             ["marketing.seo-specialist", "marketing.social-media-strategist",
-             "sales.sales-outbound-strategist", "engineering.minimal-change-engineer"],
+             "sales.outbound-strategist", "engineering.minimal-change-engineer"],
             {"price": 149, "currency": "ZAR", "period": "month", "mrr_target_20": 2980},
         ),
     ]

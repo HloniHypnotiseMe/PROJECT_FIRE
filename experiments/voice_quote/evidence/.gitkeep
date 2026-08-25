@@ -1,0 +1,2 @@
+# Evidence files (voice notes, quotes, payment receipts) land here at runtime.
+# Naming: P<id>_<type>_<n>.<ext>

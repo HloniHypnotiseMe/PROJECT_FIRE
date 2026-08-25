@@ -37,12 +37,14 @@
     "required_agents": [
       "engineering.ai-engineer",
       "support.analytics-reporter",
-      "marketing.linkedin-content-creator"
+      "marketing.linkedin-content-creator",
+      "product.manager"
     ],
     "kill_criteria": [
       "<40% of trials convert to paid",
       "SOP quality below manual baseline"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "SOP library + audit trail upsell",
       "enterprise SSO"
@@ -93,7 +95,9 @@
     "validation_experiment": "Sell to 10 plumbers in one week via DMs; measure: % who send a 2nd voice note (retention), % who pay.",
     "required_agents": [
       "engineering.rapid-prototyper",
+      "engineering.voice-ai-integration-engineer",
       "engineering.backend-architect",
+      "sales.engineer",
       "marketing.tiktok-strategist",
       "finance.financial-analyst"
     ],
@@ -101,6 +105,12 @@
       "<5 of 10 first-touch prospects send a quote request",
       "no one pays after 14-day trial",
       "concierge turnaround > 30 min"
+    ],
+    "optimize_criteria": [
+      "5-7/10 send voice notes but 0-1 pay -> tighten offer/price ladder, 7-day trial",
+      "turnaround 5-30 min -> rebuild template, pre-fill common line items + rates",
+      "high response, <50% of responders send voice notes -> rewrite first-touch script",
+      "prospects want to pay but payment is friction -> add EFT details / PayFast link"
     ],
     "scale_criteria": [
       "quote conversion lifts 20%+",
@@ -161,6 +171,7 @@
       "creators don't publish (no engagement)",
       "clip quality below their edit bar"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "team plans for agencies",
       "white-label for video agencies"
@@ -210,13 +221,16 @@
     ],
     "validation_experiment": "2 practices for 6 weeks; measure no-show rate before/after.",
     "required_agents": [
+      "specialized.healthcare-customer-service",
       "engineering.email-intelligence-engineer",
+      "sales.engineer",
       "marketing.seo-specialist"
     ],
     "kill_criteria": [
       "no-show rate unchanged",
       "POPIA consent friction blocks rollout"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "POPIA-compliant cloud for practices",
       "regional practice networks"
@@ -266,6 +280,8 @@
     ],
     "validation_experiment": "Exam-season pilot (Oct); 100 packs; parent reviews on accuracy.",
     "required_agents": [
+      "specialized.corporate-training-designer",
+      "product.manager",
       "marketing.seo-specialist",
       "engineering.rapid-prototyper"
     ],
@@ -273,6 +289,7 @@
       "content errors in any reviewed pack",
       "parents prefer buying past papers"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "school licences",
       "tutor marketplace attachment"
@@ -324,12 +341,14 @@
     "required_agents": [
       "marketing.seo-specialist",
       "marketing.social-media-strategist",
+      "sales.outbound-strategist",
       "engineering.minimal-change-engineer"
     ],
     "kill_criteria": [
       "<+5 reviews/month avg",
       "owners won't share customer contact lists"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "multi-location chains",
       "reputation bundle with listings management"
@@ -380,12 +399,15 @@
     "validation_experiment": "3 salons pilot for a month; measure no-show rate change and booking lift.",
     "required_agents": [
       "engineering.rapid-prototyper",
+      "engineering.voice-ai-integration-engineer",
+      "sales.engineer",
       "marketing.social-media-strategist"
     ],
     "kill_criteria": [
       "no-shows not reduced",
       "salons won't pay monthly"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "multi-location chains",
       "deposit collection becomes the moat"
@@ -437,12 +459,14 @@
     "required_agents": [
       "specialized.legal-document-review",
       "engineering.minimal-change-engineer",
+      "sales.outbound-strategist",
       "marketing.seo-specialist"
     ],
     "kill_criteria": [
       "lawyer review flags legal errors",
       "landlords prefer DIY templates to paying R150"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "partnership with rental agencies",
       "escalation bundle: letter + attorney referral fee"
@@ -494,12 +518,14 @@
     "required_agents": [
       "finance.bookkeeper-controller",
       "engineering.rapid-prototyper",
+      "sales.outbound-strategist",
       "specialized.chief-of-staff"
     ],
     "kill_criteria": [
       "<30% weekly active after 30 days",
       "owners prefer notebooks (no trust)"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "distributor prepaid bundles",
       "credit-scoring data asset"
@@ -551,12 +577,14 @@
     "required_agents": [
       "finance.bookkeeper-controller",
       "engineering.email-intelligence-engineer",
+      "sales.engineer",
       "marketing.linkedin-content-creator"
     ],
     "kill_criteria": [
       "<20% of chased invoices recovered",
       "freelancers unwilling to grant Gmail access"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "commission escalates to collection partners",
       "API for accounting tools"
@@ -608,12 +636,14 @@
     "required_agents": [
       "finance.tax-strategist",
       "finance.bookkeeper-controller",
+      "engineering.voice-ai-integration-engineer",
       "marketing.tiktok-strategist"
     ],
     "kill_criteria": [
       "<30 filings in season",
       "users still need a professional to file"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "year-round bookkeeping upsell",
       "SARS eFiling API integration"
@@ -666,12 +696,14 @@
       "engineering.frontend-developer",
       "specialized.recruitment-specialist",
       "marketing.carousel-growth-engine",
+      "product.manager",
       "marketing.tiktok-strategist"
     ],
     "kill_criteria": [
       "<10 paid conversions from first 100 free users",
       "ATS pass rate not measurably higher"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "referral loop: each paying grad refers 1+",
       "career-coaching upsell"
@@ -721,13 +753,16 @@
     ],
     "validation_experiment": "50 freelancers; measure reply-rate lift vs their baseline template.",
     "required_agents": [
+      "sales.proposal-strategist",
       "engineering.frontend-developer",
-      "marketing.growth-hacker"
+      "marketing.growth-hacker",
+      "product.manager"
     ],
     "kill_criteria": [
       "reply rate unchanged",
       "freelancers stop renewing after 1 month"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "platform API integrations",
       "interview-prep upsell"
@@ -786,6 +821,7 @@
       "<10 sales in the placement window",
       "no evidence appeals improve outcomes"
     ],
+    "optimize_criteria": [],
     "scale_criteria": [
       "multi-city expansion",
       "sibling bundle pricing"
