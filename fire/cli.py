@@ -35,6 +35,7 @@ from . import __version__
 from .coach.success_coach import BusinessSuccessCoach
 from .config import load_config, paths
 from .growth.diagnostic import BusinessMetrics, GrowthDiagnostic
+from .growth.learning import GrowthLearningEngine, LearningError, lesson_id_for
 from .growth.lifecycle import (
     LOWER_BETTER_LEVERS,
     MissionExecutionError,
@@ -43,7 +44,7 @@ from .growth.lifecycle import (
     mission_id_for,
 )
 from .growth.missions import StepKind
-from .growth.models import BusinessProfile
+from .growth.models import BusinessProfile, GrowthLever
 from .growth.orchestrator import GrowthOrchestrator
 from .onboarding.consent import ConsentProfile
 from .dashboard import write_dashboard
@@ -463,6 +464,17 @@ def cmd_growth_diagnose(args):
         marker = "*" if o.lever is plan.priority_lever else " "
         print(f" {marker} [{o.lever.value:16s}] {o.title}")
         print(f"     impact: {o.expected_impact}")
+    # closed loop (Phase 8): recorded prior lessons for this business+lever
+    prior = _growth_engine().retrieve(
+        business=prof.business_name, lever=result.primary_lever.value)
+    print("\nPRIOR LESSONS (recorded from earlier missions on this "
+          "business/lever):")
+    if prior:
+        for l in prior:
+            print(f"  - {l.lesson_id} [{l.decision}] (mission {l.mission_id}): "
+                  f"{l.lesson}")
+    else:
+        print("  (none recorded yet)")
     return 0
 
 
@@ -470,6 +482,14 @@ def cmd_growth_mission(args):
     prof, metrics = _require_profile(args.profile)
     rt = _growth_runtime()
     mission = GrowthOrchestrator().create_mission(prof, metrics)
+    # closed loop (Phase 8): carry relevant recorded prior lessons into the
+    # new mission as traceable evidence (existing evidence field, additive)
+    prior = _growth_engine().retrieve(
+        business=mission.business_name, lever=mission.lever.value)
+    for l in prior:
+        mission.evidence.append(
+            f"prior lesson {l.lesson_id} (mission {l.mission_id}, "
+            f"decision {l.decision}): {l.lesson}")
     mid = mission_id_for(mission)
     existed = rt.path_for(mid).exists()
     mid = rt.persist(mission)
@@ -505,6 +525,11 @@ def cmd_growth_mission(args):
     print("SCALE CRITERIA:")
     for c in mission.scale_criteria:
         print(f"  - {c}")
+    if prior:
+        print("\nPRIOR LESSONS (recorded evidence carried into this mission):")
+        for l in prior:
+            print(f"  - {l.lesson_id} [{l.decision}] (mission {l.mission_id}): "
+                  f"{l.lesson}")
     return 0
 
 
@@ -624,6 +649,46 @@ def cmd_growth_missions(args):
     return 0
 
 
+def _growth_engine() -> GrowthLearningEngine:
+    return GrowthLearningEngine(P["memory_dir"])
+
+
+def cmd_growth_learn(args):
+    engine = _growth_engine()
+    pre_existing = engine.path_for(lesson_id_for(args.mission)).exists()
+    lesson = engine.learn(args.mission)
+    print(f"LESSON {lesson.lesson_id} ({'updated' if pre_existing else 'created'})")
+    print(f"  mission    : {lesson.mission_id}")
+    print(f"  business   : {lesson.business}")
+    print(f"  lever      : {lesson.lever}")
+    print(f"  objective  : {lesson.objective}")
+    print(f"  decision   : {lesson.decision}")
+    print(f"  outcome    : {lesson.outcome}")
+    print(f"  observation: {lesson.observation}")
+    print(f"  lesson     : {lesson.lesson}")
+    print(f"  recommend  : {lesson.recommendation}")
+    print(f"  confidence : {lesson.confidence} (deterministic heuristic over "
+          f"evidence quantity — not statistical certainty)")
+    print(f"  evidence   : {len(lesson.evidence)} item(s), "
+          f"traceable to mission state")
+    return 0
+
+
+def cmd_growth_lessons(args):
+    engine = _growth_engine()
+    lessons = engine.retrieve(
+        business=args.business, lever=args.lever, decision=args.decision)
+    if not lessons:
+        print("no lessons recorded yet (or none match the filters)")
+        return 0
+    print(f"LESSONS ({len(lessons)}):")
+    for l in lessons:
+        print(f"  {l.lesson_id}  mission={l.mission_id}  business={l.business}  "
+              f"lever={l.lever}  decision={l.decision}  confidence={l.confidence}")
+        print(f"      {l.lesson}")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
@@ -727,6 +792,17 @@ def main(argv=None):
 
     gr.add_parser("missions", help="list persisted growth missions")
 
+    p_gl = gr.add_parser("learn",
+                         help="extract + persist a lesson from a decided mission")
+    p_gl.add_argument("--mission", required=True, help="mission id (gm-...)")
+
+    p_gls = gr.add_parser("lessons", help="list recorded lessons (filterable)")
+    p_gls.add_argument("--business", default=None)
+    p_gls.add_argument("--lever", default=None,
+                       choices=[l.value for l in GrowthLever])
+    p_gls.add_argument("--decision", default=None,
+                       choices=["SCALE", "OPTIMIZE", "KILL"])
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "registry":
@@ -771,7 +847,11 @@ def main(argv=None):
                     return cmd_growth_report(args)
                 if args.growth_cmd == "missions":
                     return cmd_growth_missions(args)
-            except (MissionExecutionError, _GrowthCLIError) as exc:
+                if args.growth_cmd == "learn":
+                    return cmd_growth_learn(args)
+                if args.growth_cmd == "lessons":
+                    return cmd_growth_lessons(args)
+            except (MissionExecutionError, _GrowthCLIError, LearningError) as exc:
                 print(f"[fire] error: {exc}", file=sys.stderr)
                 return 1
     except KeyboardInterrupt:
