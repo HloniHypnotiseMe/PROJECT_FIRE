@@ -12,6 +12,15 @@ Usage examples:
     python -m fire revenue
     python -m fire dashboard
     python -m fire status
+    python -m fire growth profile --name "Thabo Plumbing" --sector Plumbing --metrics m0.json
+    python -m fire growth diagnose --profile thabo-plumbing
+    python -m fire growth mission --profile thabo-plumbing
+    python -m fire growth consent gm-xxxxxxxxxxxx --owner --customer-contact
+    python -m fire growth run gm-xxxxxxxxxxxx --result "..." --evidence "..."
+    python -m fire growth measure gm-xxxxxxxxxxxx --metrics m1.json
+    python -m fire growth decide gm-xxxxxxxxxxxx
+    python -m fire growth report gm-xxxxxxxxxxxx
+    python -m fire growth missions
 """
 from __future__ import annotations
 
@@ -19,10 +28,24 @@ import argparse
 import json
 import shutil
 import sys
+from dataclasses import asdict, fields
 from pathlib import Path
 
 from . import __version__
+from .coach.success_coach import BusinessSuccessCoach
 from .config import load_config, paths
+from .growth.diagnostic import BusinessMetrics, GrowthDiagnostic
+from .growth.lifecycle import (
+    LOWER_BETTER_LEVERS,
+    MissionExecutionError,
+    MissionRuntime,
+    StepStatus,
+    mission_id_for,
+)
+from .growth.missions import StepKind
+from .growth.models import BusinessProfile
+from .growth.orchestrator import GrowthOrchestrator
+from .onboarding.consent import ConsentProfile
 from .dashboard import write_dashboard
 from .memory import EventLog
 from .models import AgentRecord, RevenueEngine
@@ -276,6 +299,332 @@ def cmd_status(args):
 
 
 # ---------------------------------------------------------------------------
+# growth operations (Phase 7): a thin operator layer over the EXISTING
+# diagnostic / coach / orchestrator / consent / lifecycle engines.
+# No business logic is duplicated here; every mutation goes through those
+# engines, which own persistence, consent gates and the EventLog audit trail.
+# ---------------------------------------------------------------------------
+
+class _GrowthCLIError(Exception):
+    """Operator-facing usage error for the growth subcommands."""
+
+
+METRIC_FIELDS = tuple(f.name for f in fields(BusinessMetrics))
+
+# consent dimension -> the CLI flags that satisfy it (Contact/purchase gates
+# also require owner authorization, per the existing ConsentManager AND rules)
+_GROWTH_CONSENT_FLAGS = {
+    "owner_authorized": "--owner",
+    "customer_contact_authorized": "--owner --customer-contact",
+    "supplier_contact_authorized": "--owner --supplier-contact",
+    "purchasing_authorized": "--owner --purchasing",
+}
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _growth_runtime() -> MissionRuntime:
+    return MissionRuntime(P["memory_dir"])
+
+
+def _profiles_dir() -> Path:
+    d = P["memory_dir"] / "business_profiles"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _load_metrics(path: str) -> BusinessMetrics:
+    p = Path(path)
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise _GrowthCLIError(f"cannot read metrics file {path}: {exc}")
+    if not isinstance(data, dict):
+        raise _GrowthCLIError("metrics JSON must be an object of BusinessMetrics fields")
+    unknown = set(data) - set(METRIC_FIELDS)
+    if unknown:
+        raise _GrowthCLIError(
+            f"unknown metric fields: {', '.join(sorted(unknown))} "
+            f"(allowed: {', '.join(METRIC_FIELDS)})")
+    try:
+        return BusinessMetrics(**{k: float(v) for k, v in data.items()})
+    except (TypeError, ValueError) as exc:
+        raise _GrowthCLIError(f"metric values must be numeric: {exc}")
+
+
+def _require_profile(slug: str | None) -> tuple[BusinessProfile, BusinessMetrics]:
+    if not slug:
+        raise _GrowthCLIError(
+            "no profile given — persist one first: "
+            "fire growth profile --name \"...\" --sector \"...\"")
+    path = _profiles_dir() / f"{_re_slug(slug)}.json"
+    if not path.exists():
+        found = None
+        for p in sorted(_profiles_dir().glob("*.json")):
+            try:
+                if json.loads(p.read_text(encoding="utf-8")).get("business_name", "").lower() == slug.lower():
+                    found = p
+                    break
+            except (OSError, json.JSONDecodeError):
+                continue
+        if found is None:
+            raise _GrowthCLIError(
+                f"unknown profile '{slug}' — save it first with `fire growth profile`")
+        path = found
+    data = json.loads(path.read_text(encoding="utf-8"))
+    prof = BusinessProfile(
+        business_name=data["business_name"],
+        sector=data.get("sector", ""),
+        location=data.get("location", ""),
+        products_services=list(data.get("products_services", [])),
+        uses_whatsapp=bool(data.get("uses_whatsapp", False)),
+        uses_crm=bool(data.get("uses_crm", False)),
+        uses_online_sales=bool(data.get("uses_online_sales", False)),
+        owner_consent=bool(data.get("owner_consent", False)),
+    )
+    metrics = BusinessMetrics(
+        **{k: float(v) for k, v in data.get("metrics", {}).items() if k in METRIC_FIELDS})
+    return prof, metrics
+
+
+def _consent_from_args(args) -> ConsentProfile:
+    return ConsentProfile(
+        owner_authorized=bool(args.owner),
+        customer_contact_authorized=bool(args.customer_contact),
+        supplier_contact_authorized=bool(args.supplier_contact),
+        purchasing_authorized=bool(args.purchasing),
+    )
+
+
+def _has_consent_flags(args) -> bool:
+    return bool(args.owner or args.customer_contact
+                or args.supplier_contact or args.purchasing)
+
+
+def cmd_growth_profile(args):
+    if args.show:
+        prof, metrics = _require_profile(args.show)
+        _print_json({"business": asdict(prof), "metrics": asdict(metrics)})
+        return 0
+    if not args.name:
+        raise _GrowthCLIError(
+            "provide --name to save a profile, or --show SLUG to print one")
+    if args.sector is None:
+        raise _GrowthCLIError("--sector is required to save a profile")
+    slug = _re_slug(args.name)
+    path = _profiles_dir() / f"{slug}.json"
+    prev = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    data = {
+        "business_name": args.name,
+        "sector": args.sector,
+        "location": args.location if args.location is not None else prev.get("location", ""),
+        "products_services": (
+            [s.strip() for s in args.services.split(",") if s.strip()]
+            if args.services is not None else prev.get("products_services", [])),
+        "uses_whatsapp": args.whatsapp or prev.get("uses_whatsapp", False),
+        "uses_crm": args.crm or prev.get("uses_crm", False),
+        "uses_online_sales": args.online_sales or prev.get("uses_online_sales", False),
+        "owner_consent": args.owner_consent or prev.get("owner_consent", False),
+        "metrics": (asdict(_load_metrics(args.metrics))
+                    if args.metrics else
+                    prev.get("metrics", {k: 0 for k in METRIC_FIELDS})),
+        "updated_at": _now_iso(),
+    }
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    _growth_runtime().events.append(
+        "business_profile_saved", {"profile": slug, "business": args.name})
+    print(f"PROFILE {slug} saved -> {path}")
+    print(f"  business: {data['business_name']} | sector: {data['sector']} | "
+          f"location: {data['location'] or '-'}")
+    if data["products_services"]:
+        print(f"  services: {', '.join(data['products_services'])}")
+    print("  metrics: " + ", ".join(f"{k}={v}" for k, v in data["metrics"].items()))
+    print("  note: only operator-supplied evidence is stored; nothing is fabricated.")
+    return 0
+
+
+def cmd_growth_diagnose(args):
+    prof, metrics = _require_profile(args.profile)
+    result = GrowthDiagnostic().diagnose(prof, metrics)
+    plan = BusinessSuccessCoach().audit(prof, metrics)
+    print(f"BUSINESS: {prof.business_name} ({prof.sector})")
+    print("\nLEVER SCORES (existing GrowthDiagnostic):")
+    for lever, score in result.scores.items():
+        mark = "  <-- PRIMARY" if lever is result.primary_lever else ""
+        print(f"  {lever.value:16s} {score:4.1f}{mark}")
+    print(f"\nPRIMARY LEVER: {result.primary_lever.value}")
+    print(f"REASONING: {result.rationale}")
+    print(f"\nOPPORTUNITIES (existing BusinessSuccessCoach, "
+          f"priority: {plan.priority_lever.value}):")
+    for o in plan.opportunities:
+        marker = "*" if o.lever is plan.priority_lever else " "
+        print(f" {marker} [{o.lever.value:16s}] {o.title}")
+        print(f"     impact: {o.expected_impact}")
+    return 0
+
+
+def cmd_growth_mission(args):
+    prof, metrics = _require_profile(args.profile)
+    rt = _growth_runtime()
+    mission = GrowthOrchestrator().create_mission(prof, metrics)
+    mid = mission_id_for(mission)
+    existed = rt.path_for(mid).exists()
+    mid = rt.persist(mission)
+    print(f"MISSION {mid}"
+          + (" (existing mission resumed — idempotent)" if existed else " (created and persisted)"))
+    print(f"  business : {mission.business_name}")
+    print(f"  lever    : {mission.lever.value}")
+    print(f"  objective: {mission.objective}")
+    print(f"  problem  : {mission.problem}")
+    print(f"  status   : {mission.status.value}")
+    print("  baseline : " + ", ".join(f"{k}={v}" for k, v in mission.baseline.items()))
+    print("  target   : " + ", ".join(f"{k}={v:g}" for k, v in mission.target.items()))
+    print("\nWORKFLOW (ordered, non-skippable):")
+    for s in mission.workflow:
+        perm = f"  [requires {s.requires_permission}]" if s.requires_permission else ""
+        print(f"  {s.step:02d} [{s.kind.value:16s}] {s.name}{perm}")
+    print("\nTEAM (registry-resolved):")
+    for m in mission.agent_team:
+        print(f"  {m.role:16s} {m.agent_id}")
+    print("\nCONSENT GATES:")
+    for g in mission.approval_gates:
+        state = {True: "granted", False: "DENIED", None: "not yet evaluated"}[g.granted]
+        print(f"  {g.permission} (steps {g.step_numbers}) — {state}")
+        print(f"     {g.description}")
+    if not mission.approval_gates:
+        print("  (none)")
+    print("\nSUCCESS CRITERIA:")
+    for c in mission.success_criteria:
+        print(f"  - {c}")
+    print("KILL CRITERIA:")
+    for c in mission.kill_criteria:
+        print(f"  - {c}")
+    print("SCALE CRITERIA:")
+    for c in mission.scale_criteria:
+        print(f"  - {c}")
+    return 0
+
+
+def cmd_growth_consent(args):
+    rt = _growth_runtime()
+    if _has_consent_flags(args):
+        rt.apply_consent(args.mission, _consent_from_args(args))
+    mission = rt.load(args.mission)
+    print(f"MISSION {args.mission} — status: {mission.status.value}")
+    for g in mission.approval_gates:
+        state = {True: "GRANTED", False: "denied", None: "not yet evaluated"}[g.granted]
+        print(f"  gate {g.permission:28s} steps {g.step_numbers} — {state}")
+    if not mission.approval_gates:
+        print("  (no consent gates on this mission)")
+    if mission.status.value == "BLOCKED":
+        print("  mission is BLOCKED: apply the missing consent dimension(s) "
+              "with `fire growth consent`")
+    return 0
+
+
+def cmd_growth_run(args):
+    rt = _growth_runtime()
+    mission = rt.load(args.mission)
+    step = args.step if args.step is not None else rt.next_actionable(args.mission)
+    if step is None:
+        st = rt.state(args.mission)
+        print(f"MISSION {args.mission} — all steps complete (completed_at={st['completed_at']})")
+        return 0
+    step_obj = next(s for s in mission.workflow if s.step == step)
+    consent = _consent_from_args(args) if _has_consent_flags(args) else None
+    ex = rt.execute_step(args.mission, step, result=args.result,
+                         evidence=args.evidence, consent=consent)
+    if ex.blocked:
+        print(f"STEP {step} BLOCKED — {ex.reason}")
+        perm = ex.reason.split(": ", 1)[1] if ": " in ex.reason else ""
+        if perm in _GROWTH_CONSENT_FLAGS:
+            print(f"  authorize: fire growth consent {args.mission} "
+                  f"{_GROWTH_CONSENT_FLAGS[perm]}")
+            print(f"  then:      fire growth run {args.mission} --step {step}")
+        return 2
+    print(f"STEP {step} [{step_obj.kind.value}] {step_obj.name}")
+    print(f"  status: {ex.status.value} | attempts: {ex.attempts}")
+    if args.result:
+        print(f"  result: {args.result}")
+    if args.evidence:
+        print(f"  evidence: {args.evidence}")
+    if ex.status is StepStatus.COMPLETED and step_obj.kind is StepKind.EXECUTE_EXTERNAL:
+        print("  note: external action recorded per operator input; the real-world")
+        print("        action is owner-authorized and operator-attested — the CLI did not act.")
+    st = rt.state(args.mission)
+    if st["completed_at"]:
+        print(f"MISSION {args.mission} — all steps complete (completed_at={st['completed_at']})")
+        print("next: fire growth measure / decide / report")
+    return 0
+
+
+def cmd_growth_measure(args):
+    rt = _growth_runtime()
+    mission = rt.load(args.mission)
+    current = _load_metrics(args.metrics)
+    meas = rt.measure(args.mission, current)
+    lower = mission.lever in LOWER_BETTER_LEVERS
+    direction = "lower is better (cost)" if lower else "higher is better"
+    print(f"MISSION {args.mission} | lever: {mission.lever.value} ({direction})")
+    print(f"{'metric':24s} {'baseline':>10s} {'current':>10s} {'target':>10s} "
+          f"{'progress':>10s}")
+    for key, target in mission.target.items():
+        base = float(mission.baseline.get(key, 0.0))
+        cur = float(meas.metrics.get(key, base))
+        print(f"{key:24s} {base:>10.3f} {cur:>10.3f} {float(target):>10.3f} "
+              f"{meas.progress[key]:>10.3f}")
+    print(f"OVERALL PROGRESS: {meas.overall:.4f}")
+    print("next: fire growth decide / report")
+    return 0
+
+
+def cmd_growth_decide(args):
+    rt = _growth_runtime()
+    decision = rt.decide(args.mission)
+    mission = rt.load(args.mission)
+    print(decision)
+    print(f"MISSION {args.mission} — status: {mission.status.value} "
+          "(decision from the latest recorded measurement)")
+    return 0
+
+
+def cmd_growth_report(args):
+    rt = _growth_runtime()
+    path = rt.write_execution_report(args.mission, out_path=args.out)
+    st = rt.state(args.mission)
+    mission = rt.load(args.mission)
+    rep = st["report"] or {}
+    print(f"REPORT: {path}")
+    print(f"QUALITY GATE: {rep.get('verdict')} ({rep.get('summary')})")
+    print(f"MISSION {args.mission} — status: {mission.status.value} | "
+          f"decision: {st['decision'] or 'pending'}")
+    print(f"EVIDENCE: {len(mission.evidence)} item(s) recorded in mission state")
+    return 0
+
+
+def cmd_growth_missions(args):
+    rt = _growth_runtime()
+    ids = rt.list_missions()
+    if not ids:
+        print("no growth missions persisted yet")
+        return 0
+    print(f"{'id':20s} {'business':26s} {'lever':16s} {'status':12s} "
+          f"{'decision':10s} next")
+    for mid in ids:
+        st = rt.state(mid)
+        m = st["mission"]
+        nxt = rt.next_actionable(mid)
+        nxt_s = f"step {nxt}" if nxt is not None else (
+            "done" if st["completed_at"] else "-")
+        print(f"{mid:20s} {m['business_name'][:26]:26s} {m['lever']:16s} "
+              f"{m['status']:12s} {str(st['decision'] or '-'):10s} {nxt_s}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 
@@ -319,6 +668,65 @@ def main(argv=None):
 
     p_stat = sub.add_parser("status", help="system status")
 
+    p_growth = sub.add_parser(
+        "growth", help="growth operations: profile->diagnose->mission->consent"
+                       "->run->measure->decide->report")
+    gr = p_growth.add_subparsers(dest="growth_cmd", required=True)
+
+    p_gp = gr.add_parser("profile", help="save/reload persisted business evidence")
+    p_gp.add_argument("--name", help="business name (creates/updates)")
+    p_gp.add_argument("--sector")
+    p_gp.add_argument("--location")
+    p_gp.add_argument("--services", help="comma-separated products/services")
+    p_gp.add_argument("--whatsapp", action="store_true")
+    p_gp.add_argument("--crm", action="store_true")
+    p_gp.add_argument("--online-sales", action="store_true")
+    p_gp.add_argument("--owner-consent", action="store_true",
+                      help="record owner onboarding consent in the profile")
+    p_gp.add_argument("--metrics", metavar="JSON",
+                      help="metrics file (BusinessMetrics fields, subset ok)")
+    p_gp.add_argument("--show", metavar="SLUG", help="print a persisted profile")
+
+    p_gd = gr.add_parser("diagnose", help="score levers + prioritize opportunities")
+    p_gd.add_argument("--profile", metavar="SLUG", help="persisted profile slug/name")
+
+    p_gm = gr.add_parser("mission", help="create/persist the growth mission")
+    p_gm.add_argument("--profile", metavar="SLUG", help="persisted profile slug/name")
+
+    p_gc = gr.add_parser("consent",
+                         help="apply owner consent to mission gates (or show state)")
+    p_gc.add_argument("mission", help="mission id (gm-...)")
+    p_gc.add_argument("--owner", action="store_true")
+    p_gc.add_argument("--customer-contact", action="store_true")
+    p_gc.add_argument("--supplier-contact", action="store_true")
+    p_gc.add_argument("--purchasing", action="store_true")
+
+    p_gr = gr.add_parser("run", help="execute the next actionable step (or --step N)")
+    p_gr.add_argument("mission", help="mission id (gm-...)")
+    p_gr.add_argument("--step", type=int, default=None)
+    p_gr.add_argument("--result", default="",
+                      help="operator-attested result of the performed action")
+    p_gr.add_argument("--evidence", default="",
+                      help="operator-attested evidence for the performed action")
+    p_gr.add_argument("--owner", action="store_true")
+    p_gr.add_argument("--customer-contact", action="store_true")
+    p_gr.add_argument("--supplier-contact", action="store_true")
+    p_gr.add_argument("--purchasing", action="store_true")
+
+    p_gme = gr.add_parser("measure", help="record current metrics vs baseline/target")
+    p_gme.add_argument("mission", help="mission id (gm-...)")
+    p_gme.add_argument("--metrics", required=True, metavar="JSON",
+                       help="metrics file (BusinessMetrics fields, subset ok)")
+
+    p_gde = gr.add_parser("decide", help="SCALE / OPTIMIZE / KILL from latest measurement")
+    p_gde.add_argument("mission", help="mission id (gm-...)")
+
+    p_gre = gr.add_parser("report", help="write the execution report via the quality gate")
+    p_gre.add_argument("mission", help="mission id (gm-...)")
+    p_gre.add_argument("--out", default=None, metavar="PATH")
+
+    gr.add_parser("missions", help="list persisted growth missions")
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "registry":
@@ -343,6 +751,29 @@ def main(argv=None):
             return cmd_dashboard(args)
         if args.cmd == "status":
             return cmd_status(args)
+        if args.cmd == "growth":
+            try:
+                if args.growth_cmd == "profile":
+                    return cmd_growth_profile(args)
+                if args.growth_cmd == "diagnose":
+                    return cmd_growth_diagnose(args)
+                if args.growth_cmd == "mission":
+                    return cmd_growth_mission(args)
+                if args.growth_cmd == "consent":
+                    return cmd_growth_consent(args)
+                if args.growth_cmd == "run":
+                    return cmd_growth_run(args)
+                if args.growth_cmd == "measure":
+                    return cmd_growth_measure(args)
+                if args.growth_cmd == "decide":
+                    return cmd_growth_decide(args)
+                if args.growth_cmd == "report":
+                    return cmd_growth_report(args)
+                if args.growth_cmd == "missions":
+                    return cmd_growth_missions(args)
+            except (MissionExecutionError, _GrowthCLIError) as exc:
+                print(f"[fire] error: {exc}", file=sys.stderr)
+                return 1
     except KeyboardInterrupt:
         return 130
     return 0
