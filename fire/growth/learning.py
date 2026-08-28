@@ -316,3 +316,30 @@ class GrowthLearningEngine:
              "confidence": lesson.confidence},
         )
         return lesson
+
+    def save_lesson(self, lesson: GrowthLesson) -> GrowthLesson:
+        """Persist an externally constructed lesson (e.g. from a commercial
+        experiment decision). Reuses the same lesson store, deterministic
+        ordering and gm_lesson_* audit events as learn(); learn() and
+        retrieve() semantics are unchanged. Idempotent per lesson_id."""
+        path = self.path_for(lesson.lesson_id)
+        if path.exists():
+            existing = GrowthLesson.from_dict(
+                json.loads(path.read_text(encoding="utf-8")))
+            lesson.created_at = existing.created_at or lesson.created_at
+            action = "updated"
+        else:
+            lesson.created_at = lesson.created_at or _now()
+            action = "created"
+        lesson.updated_at = _now()
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(lesson.to_dict(), indent=2), encoding="utf-8")
+        os.replace(tmp, path)
+        self.events.append(
+            f"gm_lesson_{action}",
+            {"lesson_id": lesson.lesson_id, "mission_id": lesson.mission_id,
+             "business": lesson.business, "lever": lesson.lever,
+             "decision": lesson.decision, "confidence": lesson.confidence,
+             "source": "external"},
+        )
+        return lesson

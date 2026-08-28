@@ -32,6 +32,7 @@ from dataclasses import asdict, fields
 from pathlib import Path
 
 from . import __version__
+from .commercial import CommercialEngine, CommercialError, PriceTier
 from .coach.success_coach import BusinessSuccessCoach
 from .config import load_config, paths
 from .growth.diagnostic import BusinessMetrics, GrowthDiagnostic
@@ -690,6 +691,216 @@ def cmd_growth_lessons(args):
 
 
 # ---------------------------------------------------------------------------
+# commercial operations (Phase 9): evidence-bounded revenue validation.
+# No receipt = no revenue. Simulated != real. Verified revenue =
+# collected AND receipt exists AND simulated == false.
+# ---------------------------------------------------------------------------
+
+_PERIOD_SUFFIXES = {"mo": "month", "month": "month", "quote": "one-off",
+                    "one-off": "one-off", "once": "one-off", "year": "year"}
+
+
+def _commercial_engine() -> CommercialEngine:
+    return CommercialEngine(P["memory_dir"])
+
+
+def _parse_tiers(spec: str) -> list[PriceTier]:
+    """Parse 'P1=199/mo,P2=99/mo,P3=49/quote' into PriceTier records."""
+    tiers: list[PriceTier] = []
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "=" not in part:
+            raise CommercialError(f"invalid tier spec {part!r} (expected TIER=PRICE[/period])")
+        name, rest = part.split("=", 1)
+        rest = rest.strip()
+        if "/" in rest:
+            price_s, per = rest.rsplit("/", 1)
+            period = _PERIOD_SUFFIXES.get(per.strip().lower())
+            if period is None:
+                raise CommercialError(
+                    f"unknown period {per!r} (allowed: {', '.join(sorted(set(_PERIOD_SUFFIXES)))})")
+        else:
+            price_s, period = rest, "month"
+        try:
+            price = float(price_s.replace("R", "").strip())
+        except ValueError as exc:
+            raise CommercialError(f"invalid price in tier {part!r}") from exc
+        tiers.append(PriceTier(tier=name.strip(), price=price, period=period))
+    if not tiers:
+        raise CommercialError("no price tiers given")
+    return tiers
+
+
+def _print_prospects() -> int:
+    prospects = _commercial_engine().list_prospects()
+    if not prospects:
+        print("no prospects recorded")
+        return 0
+    print(f"PROSPECTS ({len(prospects)}):")
+    for p in prospects:
+        sim = " [SIMULATED]" if p.simulated else ""
+        print(f"  {p.prospect_id}  {p.business:28s} {p.trade:14s} "
+              f"{p.status:12s}{sim}")
+    return 0
+
+
+def cmd_commercial_prospect(args):
+    if args.prospect_cmd == "add":
+        eng = _commercial_engine()
+        p = eng.add_prospect(args.business, args.trade, args.location or "",
+                             notes=args.notes or "", simulated=args.simulated)
+        print(f"PROSPECT {p.prospect_id} ({'SIMULATED' if p.simulated else 'real'}) — "
+              f"{p.business} ({p.trade})")
+        print(f"  location: {p.location or '-'} | status: {p.status}")
+        if p.notes:
+            print(f"  notes: {p.notes}")
+        print("  deterministic id: re-adding the same business/trade/location "
+              "updates this record")
+        return 0
+    if args.prospect_cmd == "list":
+        return _print_prospects()
+    p = _commercial_engine().get_prospect(args.id)
+    _print_json(p.to_dict())
+    return 0
+
+
+def cmd_commercial_offer(args):
+    if args.offer_cmd == "create":
+        eng = _commercial_engine()
+        offer = eng.create_offer(
+            args.opportunity, _parse_tiers(args.tiers),
+            unit_of_delivery=args.unit or "", promised_outcome=args.outcome or "",
+            terms=args.terms or "", simulated=args.simulated)
+        print(f"OFFER {offer.offer_id} (opportunity: {offer.opportunity_id} — "
+              f"{offer.opportunity_name})")
+        if offer.unit_of_delivery:
+            print(f"  unit of delivery: {offer.unit_of_delivery}")
+        if offer.promised_outcome:
+            print(f"  promised outcome: {offer.promised_outcome}")
+        print("  price tiers (HYPOTHESES until actually paid):")
+        for t in offer.price_tiers:
+            print(f"    {t.tier}: {t.price:g} /{t.period}"
+                  + (f" — {t.terms}" if t.terms else ""))
+        print("  references the existing Opportunity; hypothetical economics "
+              "remain hypotheses")
+        return 0
+    offers = _commercial_engine().list_offers()
+    if not offers:
+        print("no offers recorded")
+        return 0
+    print(f"OFFERS ({len(offers)}):")
+    for o in offers:
+        sim = " [SIMULATED]" if o.simulated else ""
+        tiers = ", ".join(f"{t.tier}={t.price:g}/{t.period}" for t in o.price_tiers)
+        print(f"  {o.offer_id}  {o.opportunity_id:24s} {tiers}{sim}")
+    return 0
+
+
+def cmd_commercial_trial(args):
+    eng = _commercial_engine()
+    e = eng.start_trial(args.prospect, offer_id=args.offer, mission_id=args.mission)
+    print(f"ENGAGEMENT {e.engagement_id} started — prospect {e.prospect_id} under "
+          f"offer {e.offer_id}")
+    if e.simulated:
+        print("  [SIMULATED — never counted as verified revenue]")
+    if e.mission_id:
+        print(f"  attributed to growth mission: {e.mission_id}")
+    print("next: fire commercial delivery record / price offer")
+    return 0
+
+
+def cmd_commercial_delivery(args):
+    eng = _commercial_engine()
+    d = eng.record_delivery(args.engagement, args.quote_n, args.requested_at,
+                            args.delivered_at, args.evidence,
+                            used_by_client=args.used)
+    print(f"DELIVERY quote #{d.quote_n} recorded")
+    print(f"  turnaround: {d.turnaround_min:.1f} min (computed from recorded timestamps)")
+    print(f"  evidence: {d.evidence_path}")
+    print(f"  used by client: {'yes' if d.used_by_client else 'not recorded'}")
+    return 0
+
+
+def cmd_commercial_price(args):
+    eng = _commercial_engine()
+    _, tier = eng.offer_price(args.engagement, args.tier)
+    print(f"PRICE OFFERED: tier {tier.tier} — {tier.price:g} /{tier.period}")
+    print("  a hypothesis until payment is recorded with a receipt")
+    return 0
+
+
+def cmd_commercial_payment(args):
+    eng = _commercial_engine()
+    tx = eng.record_payment(args.prospect, args.amount, args.receipt,
+                            period=args.period, kind=args.kind,
+                            delivery_cost=args.delivery_cost,
+                            engagement_id=args.engagement)
+    print(f"TRANSACTION {tx.transaction_id} — {tx.amount:g} {tx.currency} "
+          f"/{tx.period} ({tx.kind})")
+    print(f"  stage: {tx.stage} | collected_at: {tx.collected_at}")
+    print(f"  receipt: {tx.receipt_path}")
+    print(f"  simulated: {tx.simulated} | verified: {tx.verified}")
+    if not tx.verified:
+        print("  note: a simulated transaction is NEVER verified revenue")
+    return 0
+
+
+def cmd_commercial_revenue(args):
+    s = _commercial_engine().revenue_summary()
+    print("REVENUE VALIDATION SUMMARY")
+    print("\nMODEL (hypotheses from existing Opportunity economics — NOT revenue):")
+    for row in s["model"]:
+        print(f"  - {row['opportunity']} [{row['opportunity_id']}]: "
+              f"{row['economics']}  ({row['label']})")
+    if not s["model"]:
+        print("  (no offers recorded)")
+    print(f"\nQUOTED (offered, not collected):           R{s['quoted']:,.2f}")
+    print(f"INVOICED (awaiting payment):                R{s['invoiced']:,.2f}")
+    print(f"COLLECTED (all, incl. simulated):           R{s['collected_all']:,.2f}")
+    print(f"  of which SIMULATED (not verified):        R{s['collected_simulated']:,.2f}")
+    print(f"VERIFIED REVENUE (collected+receipt+real):  R{s['verified_revenue']:,.2f}")
+    print(f"  of which recurring monthly:               R{s['verified_recurring_monthly']:,.2f}")
+    print(f"DELIVERY COST (verified):                   R{s['verified_delivery_cost']:,.2f}")
+    print(f"GROSS MARGIN (verified):                    R{s['verified_gross_margin']:,.2f}")
+    print(f"\ninvariant: {s['invariant']}")
+    print(s["simulated_note"].capitalize() + ".")
+    return 0
+
+
+def cmd_commercial_decide(args):
+    eng = _commercial_engine()
+    dec = eng.decide_experiment(args.experiment)
+    print(f"EXPERIMENT DECISION — {args.experiment}")
+    print(f"  decision: {dec.decision}   (decision_id {dec.decision_id})")
+    print("  measured numbers: " + ", ".join(f"{k}={v}" for k, v in dec.numbers.items()))
+    print("  conditions (computed from recorded numbers only):")
+    for k, c in dec.conditions.items():
+        mark = {True: "MET", False: "not met", None: "not tracked"}[c["met"]]
+        print(f"    {k:3s} [{mark:11s}] {c['detail']}")
+    lid = lesson_id_for(dec.decision_id)
+    print(f"\n  lesson recorded in the existing learning loop: {lid} (lever=revenue)")
+    print("  retrieve: fire growth lessons --lever revenue")
+    return 0
+
+
+def cmd_commercial_decisions(args):
+    decs = _commercial_engine().list_decisions()
+    if not decs:
+        print("no experiment decisions recorded")
+        return 0
+    print(f"DECISIONS ({len(decs)}):")
+    for d in decs:
+        print(f"  {d.decision_id}  {d.experiment:24s} {d.decision:14s} {d.decided_at}")
+    return 0
+
+
+def cmd_commercial_prospects(args):
+    return _print_prospects()
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 
@@ -799,9 +1010,88 @@ def main(argv=None):
     p_gls = gr.add_parser("lessons", help="list recorded lessons (filterable)")
     p_gls.add_argument("--business", default=None)
     p_gls.add_argument("--lever", default=None,
-                       choices=[l.value for l in GrowthLever])
+                       choices=[l.value for l in GrowthLever] + ["revenue"])
     p_gls.add_argument("--decision", default=None,
                        choices=["SCALE", "OPTIMIZE", "KILL"])
+
+    p_com = sub.add_parser(
+        "commercial", help="revenue validation: prospects, offers, trials, "
+                           "deliveries, payments, verified revenue")
+    com = p_com.add_subparsers(dest="com_cmd", required=True)
+
+    p_cp = com.add_parser("prospect", help="record/inspect prospects")
+    cps = p_cp.add_subparsers(dest="prospect_cmd", required=True)
+    p_cpa = cps.add_parser("add", help="add a prospect (deterministic id)")
+    p_cpa.add_argument("--business", required=True)
+    p_cpa.add_argument("--trade", required=True)
+    p_cpa.add_argument("--location", default="")
+    p_cpa.add_argument("--notes", default="")
+    p_cpa.add_argument("--simulated", action="store_true",
+                       help="mark as simulated (never verified revenue)")
+    cps.add_parser("list", help="list prospects")
+    p_cpsh = cps.add_parser("show", help="print a prospect record")
+    p_cpsh.add_argument("id", help="prospect id (pr-...)")
+
+    p_co = com.add_parser("offer", help="offers referencing existing opportunities")
+    cos = p_co.add_subparsers(dest="offer_cmd", required=True)
+    p_coc = cos.add_parser("create", help="create an offer from an existing Opportunity")
+    p_coc.add_argument("--opportunity", required=True,
+                       help="existing Opportunity id (e.g. opp-wa-voice-quote)")
+    p_coc.add_argument("--tiers", required=True,
+                       help='e.g. "P1=199/mo,P2=99/mo,P3=49/quote"')
+    p_coc.add_argument("--unit", default="", help="unit of delivery")
+    p_coc.add_argument("--outcome", default="", help="promised measurable outcome")
+    p_coc.add_argument("--terms", default="")
+    p_coc.add_argument("--simulated", action="store_true")
+    cos.add_parser("list", help="list offers")
+
+    p_ct = com.add_parser("trial", help="start a trial engagement")
+    p_cts = p_ct.add_subparsers(dest="trial_cmd", required=True)
+    p_ctst = p_cts.add_parser("start")
+    p_ctst.add_argument("--prospect", required=True)
+    p_ctst.add_argument("--offer", default=None)
+    p_ctst.add_argument("--mission", default=None,
+                        help="optional growth mission id (attribution)")
+
+    p_cd = com.add_parser("delivery", help="record a delivered unit (evidence required)")
+    p_cds = p_cd.add_subparsers(dest="delivery_cmd", required=True)
+    p_cdr = p_cds.add_parser("record")
+    p_cdr.add_argument("--engagement", required=True)
+    p_cdr.add_argument("--quote-n", type=int, required=True)
+    p_cdr.add_argument("--requested-at", required=True, help="ISO timestamp")
+    p_cdr.add_argument("--delivered-at", required=True, help="ISO timestamp")
+    p_cdr.add_argument("--evidence", required=True,
+                       help="path to the evidence file (must exist)")
+    p_cdr.add_argument("--used", action="store_true",
+                       help="end client used the delivered unit")
+
+    p_cc = com.add_parser("price", help="offer a price tier")
+    p_ccs = p_cc.add_subparsers(dest="price_cmd", required=True)
+    p_cco = p_ccs.add_parser("offer")
+    p_cco.add_argument("--engagement", required=True)
+    p_cco.add_argument("--tier", required=True)
+
+    p_cpay = com.add_parser("payment", help="record a payment (receipt REQUIRED)")
+    p_cpay_s = p_cpay.add_subparsers(dest="payment_cmd", required=True)
+    p_cpay_r = p_cpay_s.add_parser("record")
+    p_cpay_r.add_argument("--prospect", required=True)
+    p_cpay_r.add_argument("--amount", type=float, required=True)
+    p_cpay_r.add_argument("--period", default="month",
+                          choices=["month", "one-off", "year"])
+    p_cpay_r.add_argument("--kind", default="SUBSCRIPTION",
+                          choices=["SUBSCRIPTION", "ONE_OFF", "REFUND"])
+    p_cpay_r.add_argument("--receipt", required=True,
+                          help="path to the payment receipt file (must exist)")
+    p_cpay_r.add_argument("--delivery-cost", type=float, default=0.0)
+    p_cpay_r.add_argument("--engagement", default=None)
+
+    com.add_parser("revenue",
+                   help="staged revenue summary (modelled vs verified)")
+    p_cdec = com.add_parser("decide",
+                            help="compute K/O/S from recorded numbers + record a lesson")
+    p_cdec.add_argument("--experiment", required=True)
+    com.add_parser("decisions", help="list experiment decisions")
+    com.add_parser("prospects", help="list prospects")
 
     args = parser.parse_args(argv)
     try:
@@ -852,6 +1142,31 @@ def main(argv=None):
                 if args.growth_cmd == "lessons":
                     return cmd_growth_lessons(args)
             except (MissionExecutionError, _GrowthCLIError, LearningError) as exc:
+                print(f"[fire] error: {exc}", file=sys.stderr)
+                return 1
+        if args.cmd == "commercial":
+            try:
+                if args.com_cmd == "prospect":
+                    return cmd_commercial_prospect(args)
+                if args.com_cmd == "offer":
+                    return cmd_commercial_offer(args)
+                if args.com_cmd == "trial":
+                    return cmd_commercial_trial(args)
+                if args.com_cmd == "delivery":
+                    return cmd_commercial_delivery(args)
+                if args.com_cmd == "price":
+                    return cmd_commercial_price(args)
+                if args.com_cmd == "payment":
+                    return cmd_commercial_payment(args)
+                if args.com_cmd == "revenue":
+                    return cmd_commercial_revenue(args)
+                if args.com_cmd == "decide":
+                    return cmd_commercial_decide(args)
+                if args.com_cmd == "decisions":
+                    return cmd_commercial_decisions(args)
+                if args.com_cmd == "prospects":
+                    return cmd_commercial_prospects(args)
+            except CommercialError as exc:
                 print(f"[fire] error: {exc}", file=sys.stderr)
                 return 1
     except KeyboardInterrupt:
