@@ -642,3 +642,47 @@ def test_operator_runbook_documents_the_boundaries():
                     "Launch checklist"):
         assert section in text
     assert "No receipt = no revenue" in text
+
+
+# ---------------------------------------------------------------------------
+# Phase 10 hardening: kit tracker/log production copies cannot be committed,
+# tracked templates remain trackable
+# ---------------------------------------------------------------------------
+
+def _check_ignored(rel: str) -> bool:
+    import subprocess
+    r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=REPO_ROOT,
+                       capture_output=True)
+    return r.returncode == 0
+
+
+def test_local_production_tracker_cannot_be_committed():
+    assert _check_ignored("experiments/voice_quote/prospect_tracker.local.csv")
+    # the rule is generic across future experiments, not just voice_quote
+    assert _check_ignored("experiments/next_experiment/data.local.csv")
+
+
+def test_local_production_experiment_log_cannot_be_committed():
+    assert _check_ignored("experiments/voice_quote/experiment_log.local.md")
+    assert _check_ignored("experiments/next_experiment/log.local.md")
+
+
+def test_kit_templates_and_docs_remain_trackable():
+    # header-only templates and kit docs must NOT be ignored
+    for rel in ("experiments/voice_quote/prospect_tracker.csv",
+                "experiments/voice_quote/experiment_log.md",
+                "experiments/voice_quote/quote_template.md",
+                "experiments/voice_quote/outreach.md",
+                "experiments/voice_quote/README.md"):
+        assert not _check_ignored(rel), f"{rel} must remain trackable"
+
+
+def test_existing_data_boundary_still_intact():
+    # the Phase 10 protections must be unchanged by the hardening pass
+    for rel in ("experiments/voice_quote/evidence/P1_payment.png",
+                "memory/commercial/transactions/tx-123.json",
+                "memory/business_profiles/mokoena-plumbing.json"):
+        assert _check_ignored(rel), f"{rel} must stay ignored"
+    for rel in ("experiments/voice_quote/evidence/.gitkeep",
+                "fire/commercial.py", "memory/events.jsonl"):
+        assert not _check_ignored(rel), f"{rel} must stay trackable"

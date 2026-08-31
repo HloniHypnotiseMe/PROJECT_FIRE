@@ -22,3 +22,12 @@ experiments/*/evidence/*
 !experiments/*/evidence/.gitkeep
 memory/commercial/
 memory/business_profiles/
+
+# Production copies of the experiment kit's tracker/log hold real client
+# personal data. The header-only TEMPLATES (prospect_tracker.csv,
+# experiment_log.md) stay tracked and pristine; real data is written only to
+# the .local. production copies created on the operator's machine, which can
+# never be committed. (gitignore cannot protect tracked files — that is why
+# production data uses separate .local. files, never the templates.)
+experiments/*/*.local.csv
+experiments/*/*.local.md

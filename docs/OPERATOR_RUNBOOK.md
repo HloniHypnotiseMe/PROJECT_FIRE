@@ -28,6 +28,22 @@ data stays there (see Data boundary below).
   - `experiments/*/evidence/` — real voice notes, quotes, client documents
   - `memory/commercial/` — real prospects, offers, transactions
   - `memory/business_profiles/` — real client business profiles
+- **Experiment kit records (tracker + log) — templates vs production copies:**
+  the repository keeps the header-only **templates**
+  (`experiments/voice_quote/prospect_tracker.csv`,
+  `experiments/voice_quote/experiment_log.md`) — **never edit them with real
+  data**. On Day 0, create the **production copies** on this machine:
+  ```
+  cd experiments/voice_quote
+  cp prospect_tracker.csv prospect_tracker.local.csv
+  cp experiment_log.md experiment_log.local.md
+  ```
+  All real client data (names, contacts, timestamps, revenue) is written
+  **only** to the `.local.` copies. They are git-ignored and cannot be
+  committed. Every reference to "the tracker" or "the log" in the kit
+  documents means the `.local.` production copy. (gitignore cannot protect
+  tracked files — which is exactly why production data never goes into the
+  tracked templates.)
 - **Why:** real prospect names/contacts are personal information (POPIA) and
   payment receipts contain bank references. They must not be committable to a
   public repository.
@@ -167,7 +183,10 @@ record) and `fire growth profile --name … --sector … --prospect-id <pr-…>`
 - [ ] Repository at the approved commit; `python -m pytest -q` green
 - [ ] `git check-ignore experiments/voice_quote/evidence/test.png` → exit 0
       (and same for `memory/commercial/`, `memory/business_profiles/`)
-- [ ] Weekly backup of the two data directories set up (calendar reminder)
+- [ ] Production copies created: `prospect_tracker.local.csv` +
+      `experiment_log.local.md` (git-ignored; the tracked templates stay
+      pristine — real data only ever goes into the `.local.` copies)
+- [ ] Weekly backup of the data directories set up (calendar reminder)
 - [ ] Receipt storage location agreed (`experiments/voice_quote/evidence/`)
 - [ ] EFT/PayFast destination account ready; reference-number convention agreed
 - [ ] Outreach script reviewed (opt-out rule present)
