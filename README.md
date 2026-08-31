@@ -72,7 +72,7 @@ PROJECT_FIRE/
 ├── artifacts/teams/       # lazily materialized team packs
 ├── control_room/          # generated dashboard
 ├── experiments/voice_quote/  # Experiment A validation kit (manual concierge)
-├── tests/                 # 40 unittest cases
+├── tests/                 # 150+ tests (python -m pytest -q)
 ├── config/fire.json
 └── docs/ARCHITECTURE.md
 ```
@@ -83,6 +83,12 @@ PROJECT_FIRE/
 2. **Lazy activation.** Agents are retrieved on demand from the remote library; nothing runs that a mission doesn't need.
 3. **GitHub is canonical.** This repo is designed to live on GitHub; the laptop is only the control node.
 4. **Revenue is data.** Every workflow reports economics back to the Revenue Engine and memory.
+
+## Commercial (client-ready)
+
+`fire commercial` records the full sales-and-revenue chain — prospect → offer → trial → delivery → price → payment → verified revenue — against the existing Opportunity engine, with one hard invariant: **no receipt = no revenue**, and simulated activity is never verified revenue. See `docs/OPERATOR_RUNBOOK.md` for the operator workflow.
+
+**Client data boundary (POPIA):** real client personal and financial data (voice notes, quotes, contact details, payment receipts) lives on the operator's machine and is git-ignored. Only code, configuration, kit documentation and synthetic test fixtures are versioned.
 
 ## Testing
 

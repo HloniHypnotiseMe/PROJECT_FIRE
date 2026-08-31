@@ -95,6 +95,10 @@ class Prospect:
     status: str = "IDENTIFIED"
     created_at: str = ""
     updated_at: str = ""
+    # Phase 10 (client-ready): operator-supplied contact channel and the
+    # optional cross-reference to the growth profile for the same business.
+    contact: str = ""
+    profile_slug: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -206,6 +210,7 @@ class Transaction:
     kind: str = "SUBSCRIPTION"              # SUBSCRIPTION / ONE_OFF / REFUND
     stage: str = "QUOTED"                   # QUOTED / INVOICED / COLLECTED
     receipt_path: str = ""
+    payment_ref: str = ""
     delivery_cost: float = 0.0
     simulated: bool = False
     created_at: str = ""
@@ -343,7 +348,8 @@ class CommercialEngine:
     # -- prospects -------------------------------------------------------------
     def add_prospect(self, business: str, trade: str, location: str = "",
                      notes: str = "", qualification: dict | None = None,
-                     simulated: bool = False) -> Prospect:
+                     simulated: bool = False, contact: str = "",
+                     profile_slug: str = "") -> Prospect:
         if not business or not trade:
             raise CommercialError("business and trade are required")
         pid = prospect_id_for(business, trade, location)
@@ -355,6 +361,10 @@ class CommercialEngine:
                 p.notes = notes
             if qualification:
                 p.qualification.update(qualification)
+            if contact:
+                p.contact = contact
+            if profile_slug:
+                p.profile_slug = profile_slug
             self._save(path, p.to_dict())
             return p
         p = Prospect(
@@ -362,6 +372,7 @@ class CommercialEngine:
             notes=notes, qualification=dict(qualification or {}),
             simulated=simulated, status="IDENTIFIED",
             created_at=_now(), updated_at=_now(),
+            contact=contact, profile_slug=profile_slug,
         )
         self._save(path, p.to_dict())
         self.events.append(
@@ -553,7 +564,8 @@ class CommercialEngine:
                            offer_id: str, amount: float, currency: str = "ZAR",
                            period: str = "month", kind: str = "SUBSCRIPTION",
                            stage: str = "QUOTED", delivery_cost: float = 0.0,
-                           simulated: bool | None = None) -> Transaction:
+                           simulated: bool | None = None,
+                           payment_ref: str = "") -> Transaction:
         if kind not in TRANSACTION_KINDS:
             raise CommercialError(f"invalid kind {kind!r} (allowed: {TRANSACTION_KINDS})")
         if stage not in TRANSACTION_STAGES:
@@ -572,12 +584,19 @@ class CommercialEngine:
         })
         path = self._path("transactions", txid)
         if path.exists():
-            return self._load(path, Transaction, "transaction")
+            tx = self._load(path, Transaction, "transaction")
+            if payment_ref and not tx.payment_ref:
+                # idempotent back-fill: same payment, reference added later
+                tx.payment_ref = payment_ref
+                tx.updated_at = _now()
+                self._save(path, tx.to_dict())
+            return tx
         tx = Transaction(
             transaction_id=txid, prospect_id=prospect_id,
             engagement_id=engagement_id, offer_id=offer_id, amount=amount,
             currency=currency, period=period, kind=kind, stage=stage,
             delivery_cost=delivery_cost, simulated=simulated,
+            payment_ref=payment_ref,
             created_at=_now(), updated_at=_now(),
         )
         self._save(path, tx.to_dict())
@@ -617,7 +636,8 @@ class CommercialEngine:
     def record_payment(self, prospect_id: str, amount: float,
                        receipt_path: str, period: str = "month",
                        kind: str = "SUBSCRIPTION", delivery_cost: float = 0.0,
-                       engagement_id: str | None = None) -> Transaction:
+                       engagement_id: str | None = None,
+                       payment_ref: str = "") -> Transaction:
         """The only path to COLLECTED: a real receipt file must exist."""
         if not receipt_path or not Path(receipt_path).exists():
             raise CommercialError(
@@ -635,7 +655,7 @@ class CommercialEngine:
         tx = self.create_transaction(
             prospect_id, engagement_id, eng.offer_id, amount,
             period=period, kind=kind, stage="QUOTED",
-            delivery_cost=delivery_cost,
+            delivery_cost=delivery_cost, payment_ref=payment_ref,
         )
         if tx.stage == "COLLECTED":
             return tx  # idempotent: this payment was already recorded
@@ -654,7 +674,7 @@ class CommercialEngine:
             {"transaction_id": tx.transaction_id, "prospect_id": prospect_id,
              "amount": amount, "period": period, "kind": kind,
              "receipt": str(receipt_path), "simulated": tx.simulated,
-             "verified": tx.verified},
+             "payment_ref": payment_ref, "verified": tx.verified},
         )
         return tx
 

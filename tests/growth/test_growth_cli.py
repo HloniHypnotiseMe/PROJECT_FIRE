@@ -411,3 +411,18 @@ def test_existing_cli_commands_still_green(capsys):
     with pytest.raises(SystemExit) as excinfo:
         _main(capsys, "--version")
     assert excinfo.value.code == 0
+
+
+def test_profile_prospect_crossref_persists(cli_env, capsys):
+    slug = _make_profile(capsys, cli_env, "XrefCo")
+    rc, out, err = _main(capsys, "growth", "profile", "--name", "XrefCo",
+                         "--sector", "Plumbing",
+                         "--prospect-id", "pr-x1234567890a")
+    assert rc == 0, (out, err)
+    data = json.loads((cli_env / "business_profiles" / f"{slug}.json")
+                      .read_text(encoding="utf-8"))
+    assert data["prospect_id"] == "pr-x1234567890a"
+    # and it survives a reload through the CLI show path
+    rc, out, err = _main(capsys, "growth", "profile", "--show", slug)
+    assert rc == 0, (out, err)
+    assert '"prospect_id": "pr-x1234567890a"' in out

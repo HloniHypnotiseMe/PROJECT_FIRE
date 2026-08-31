@@ -496,3 +496,149 @@ def test_existing_cli_still_green(capsys):
     assert rc == 0 and "MODEL hypotheses" in out
     rc, out, err = _main(capsys, "growth", "missions")
     assert rc == 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 10 (client-ready): data boundary, cross-refs, payment references
+# ---------------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_prospect_contact_and_profile_slug_roundtrip(engine):
+    tmp, eng = engine
+    p = eng.add_prospect("BoundaryCo", "Plumber", "Johannesburg",
+                         contact="+27 82 000 0000", profile_slug="boundaryco")
+    assert p.contact == "+27 82 000 0000"
+    assert p.profile_slug == "boundaryco"
+    # idempotent re-add keeps existing fields
+    p2 = eng.add_prospect("BoundaryCo", "Plumber", "Johannesburg")
+    assert p2.contact == "+27 82 000 0000" and p2.profile_slug == "boundaryco"
+    # re-adding can fill in a missing field without clobbering others
+    p3 = eng.add_prospect("BoundaryCo", "Plumber", "Johannesburg",
+                          contact="+27 82 111 1111")
+    assert p3.contact == "+27 82 111 1111" and p3.profile_slug == "boundaryco"
+
+
+def test_transaction_payment_ref_roundtrip(engine):
+    tmp, eng = engine
+    eng, pid, oid, eid, ev_dir, receipt, *_ = _full_engine_setup(tmp)
+    receipt.write_bytes(b"receipt")
+    tx = eng.record_payment(pid, 199.0, str(receipt), payment_ref="EFT-2026-0001")
+    assert tx.stage == "COLLECTED" and tx.payment_ref == "EFT-2026-0001"
+    reloaded = next(t for t in eng.list_transactions()
+                    if t.transaction_id == tx.transaction_id)
+    assert reloaded.payment_ref == "EFT-2026-0001"
+
+
+def test_payment_ref_backfill_is_idempotent(engine):
+    tmp, _ = engine
+    eng = CommercialEngine(tmp)
+    eng, pid, oid, eid, ev_dir, receipt, *_ = _full_engine_setup(tmp)
+    receipt.write_bytes(b"receipt")
+    tx = eng.record_payment(pid, 199.0, str(receipt))
+    assert tx.payment_ref == ""
+    # same payment, reference supplied later: back-filled, NOT a second tx
+    tx2 = eng.record_payment(pid, 199.0, str(receipt), payment_ref="EFT-2026-0002")
+    assert tx2.transaction_id == tx.transaction_id
+    assert tx2.payment_ref == "EFT-2026-0002"
+    assert len(eng.list_transactions()) == 1
+
+
+def test_legacy_records_load_with_new_fields_defaulting(engine):
+    tmp, eng = engine
+    p = eng.add_prospect("LegacyCo", "Plumber", "Johannesburg")
+    ppath = tmp / "commercial" / "prospects" / f"{p.prospect_id}.json"
+    legacy = {"prospect_id": p.prospect_id, "business": "LegacyCo",
+              "trade": "Plumber", "location": "Johannesburg", "notes": "",
+              "qualification": {}, "simulated": False, "status": "IDENTIFIED",
+              "created_at": "2026-01-01T00:00:00",
+              "updated_at": "2026-01-01T00:00:00"}
+    ppath.write_text(json.dumps(legacy), encoding="utf-8")
+    loaded = eng.get_prospect(p.prospect_id)
+    assert loaded.contact == "" and loaded.profile_slug == ""
+
+
+def test_gitignore_client_data_boundary():
+    import subprocess
+    def ignored(rel: str) -> bool:
+        r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=REPO_ROOT,
+                           capture_output=True)
+        return r.returncode == 0
+    # real client data must never be committable to the public repo
+    assert ignored("experiments/voice_quote/evidence/P1_payment.png")
+    assert ignored("memory/commercial/transactions/tx-123.json")
+    assert ignored("memory/business_profiles/mokoena-plumbing.json")
+    # code, kit docs and the audit log remain trackable
+    assert not ignored("experiments/voice_quote/evidence/.gitkeep")
+    assert not ignored("fire/commercial.py")
+    assert not ignored("memory/events.jsonl")
+
+
+def test_real_chain_with_payment_ref_is_verified(tmp_path):
+    eng, pid, oid, eid, ev_dir, receipt, p, offer, trial = _full_engine_setup(
+        tmp_path)
+    assert p.simulated is False
+    _record_delivery(eng, eid, ev_dir)
+    receipt.write_bytes(b"real receipt")
+    tx = eng.record_payment(pid, 199.0, str(receipt), payment_ref="EFT-2026-0003")
+    assert tx.verified is True
+    s = eng.revenue_summary()
+    assert s["verified_revenue"] == 199.0
+
+
+def test_simulated_twin_of_same_flow_stays_unverified(tmp_path):
+    eng, pid, oid, eid, ev_dir, receipt, p, offer, trial = _full_engine_setup(
+        tmp_path, simulated=True)
+    assert p.simulated is True
+    _record_delivery(eng, eid, ev_dir)
+    receipt.write_bytes(b"simulated receipt")
+    tx = eng.record_payment(pid, 199.0, str(receipt))
+    assert tx.verified is False
+    s = eng.revenue_summary()
+    assert s["verified_revenue"] == 0.0
+    assert s["collected_simulated"] == 199.0
+
+
+def test_cli_prospect_contact_flags(cli_env, capsys):
+    rc, out, err = _main(capsys, "commercial", "prospect", "add",
+                         "--business", "CLI Contact Co", "--trade", "Plumber",
+                         "--location", "Johannesburg",
+                         "--contact", "+27 83 222 3333",
+                         "--profile-slug", "cli-contact-co")
+    assert rc == 0, (out, err)
+    assert "+27 83 222 3333" in out
+
+
+def test_cli_payment_ref_shown(cli_env, capsys):
+    rc, out, err = _main(capsys, "commercial", "prospect", "add",
+                         "--business", "RefCo", "--trade", "Plumber")
+    assert rc == 0, (out, err)
+    pid = out.splitlines()[0].split()[1]
+    rc, out, err = _main(capsys, "commercial", "offer", "create",
+                         "--opportunity", "opp-wa-voice-quote",
+                         "--tiers", "P1=199/mo")
+    assert rc == 0, (out, err)
+    oid = out.splitlines()[0].split()[1]
+    rc, out, err = _main(capsys, "commercial", "trial", "start",
+                         "--prospect", pid, "--offer", oid)
+    assert rc == 0, (out, err)
+    receipt = cli_env / "receipt_ref.png"
+    receipt.write_bytes(b"receipt")
+    rc, out, err = _main(capsys, "commercial", "payment", "record",
+                         "--prospect", pid, "--amount", "199",
+                         "--receipt", str(receipt),
+                         "--payment-ref", "EFT-CLI-1")
+    assert rc == 0, (out, err)
+    assert "payment ref: EFT-CLI-1" in out
+
+
+def test_operator_runbook_documents_the_boundaries():
+    rb = REPO_ROOT / "docs" / "OPERATOR_RUNBOOK.md"
+    assert rb.exists()
+    text = rb.read_text(encoding="utf-8")
+    for section in ("Data boundary", "Acceptance rule", "Consent boundary",
+                    "Identity verification", "Backup procedure",
+                    "Launch checklist"):
+        assert section in text
+    assert "No receipt = no revenue" in text

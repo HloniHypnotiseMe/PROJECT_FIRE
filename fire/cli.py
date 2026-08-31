@@ -386,6 +386,7 @@ def _require_profile(slug: str | None) -> tuple[BusinessProfile, BusinessMetrics
         uses_crm=bool(data.get("uses_crm", False)),
         uses_online_sales=bool(data.get("uses_online_sales", False)),
         owner_consent=bool(data.get("owner_consent", False)),
+        prospect_id=data.get("prospect_id", ""),
     )
     metrics = BusinessMetrics(
         **{k: float(v) for k, v in data.get("metrics", {}).items() if k in METRIC_FIELDS})
@@ -430,6 +431,7 @@ def cmd_growth_profile(args):
         "uses_crm": args.crm or prev.get("uses_crm", False),
         "uses_online_sales": args.online_sales or prev.get("uses_online_sales", False),
         "owner_consent": args.owner_consent or prev.get("owner_consent", False),
+        "prospect_id": args.prospect_id or prev.get("prospect_id", ""),
         "metrics": (asdict(_load_metrics(args.metrics))
                     if args.metrics else
                     prev.get("metrics", {k: 0 for k in METRIC_FIELDS})),
@@ -750,10 +752,14 @@ def cmd_commercial_prospect(args):
     if args.prospect_cmd == "add":
         eng = _commercial_engine()
         p = eng.add_prospect(args.business, args.trade, args.location or "",
-                             notes=args.notes or "", simulated=args.simulated)
+                             notes=args.notes or "", simulated=args.simulated,
+                             contact=args.contact or "",
+                             profile_slug=args.profile_slug or "")
         print(f"PROSPECT {p.prospect_id} ({'SIMULATED' if p.simulated else 'real'}) — "
               f"{p.business} ({p.trade})")
         print(f"  location: {p.location or '-'} | status: {p.status}")
+        if p.contact:
+            print(f"  contact: {p.contact}")
         if p.notes:
             print(f"  notes: {p.notes}")
         print("  deterministic id: re-adding the same business/trade/location "
@@ -836,11 +842,14 @@ def cmd_commercial_payment(args):
     tx = eng.record_payment(args.prospect, args.amount, args.receipt,
                             period=args.period, kind=args.kind,
                             delivery_cost=args.delivery_cost,
-                            engagement_id=args.engagement)
+                            engagement_id=args.engagement,
+                            payment_ref=args.payment_ref or "")
     print(f"TRANSACTION {tx.transaction_id} — {tx.amount:g} {tx.currency} "
           f"/{tx.period} ({tx.kind})")
     print(f"  stage: {tx.stage} | collected_at: {tx.collected_at}")
     print(f"  receipt: {tx.receipt_path}")
+    if tx.payment_ref:
+        print(f"  payment ref: {tx.payment_ref}")
     print(f"  simulated: {tx.simulated} | verified: {tx.verified}")
     if not tx.verified:
         print("  note: a simulated transaction is NEVER verified revenue")
@@ -959,6 +968,8 @@ def main(argv=None):
     p_gp.add_argument("--online-sales", action="store_true")
     p_gp.add_argument("--owner-consent", action="store_true",
                       help="record owner onboarding consent in the profile")
+    p_gp.add_argument("--prospect-id", default="",
+                      help="cross-reference to the commercial prospect (pr-...)")
     p_gp.add_argument("--metrics", metavar="JSON",
                       help="metrics file (BusinessMetrics fields, subset ok)")
     p_gp.add_argument("--show", metavar="SLUG", help="print a persisted profile")
@@ -1028,6 +1039,10 @@ def main(argv=None):
     p_cpa.add_argument("--notes", default="")
     p_cpa.add_argument("--simulated", action="store_true",
                        help="mark as simulated (never verified revenue)")
+    p_cpa.add_argument("--contact", default="",
+                       help="contact channel (e.g. phone / WhatsApp number)")
+    p_cpa.add_argument("--profile-slug", default="",
+                       help="cross-reference to the growth profile slug")
     cps.add_parser("list", help="list prospects")
     p_cpsh = cps.add_parser("show", help="print a prospect record")
     p_cpsh.add_argument("id", help="prospect id (pr-...)")
@@ -1082,6 +1097,8 @@ def main(argv=None):
                           choices=["SUBSCRIPTION", "ONE_OFF", "REFUND"])
     p_cpay_r.add_argument("--receipt", required=True,
                           help="path to the payment receipt file (must exist)")
+    p_cpay_r.add_argument("--payment-ref", default="",
+                          help="payment reference number on the receipt")
     p_cpay_r.add_argument("--delivery-cost", type=float, default=0.0)
     p_cpay_r.add_argument("--engagement", default=None)
 

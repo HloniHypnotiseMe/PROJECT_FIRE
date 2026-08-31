@@ -34,6 +34,10 @@ class BusinessProfile:
 
     owner_consent: bool = False
 
+    # Phase 10 (client-ready): optional cross-reference to the commercial
+    # prospect (pr-...) representing the same business.
+    prospect_id: str = ""
+
 
 @dataclass
 class GrowthOpportunity:

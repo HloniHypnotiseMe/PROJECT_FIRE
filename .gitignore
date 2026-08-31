@@ -13,3 +13,12 @@ Thumbs.db
 
 # Local runtime noise (kept small on purpose; memory IS versioned)
 # memory/events.jsonl and missions.jsonl are small and versioned.
+
+# CLIENT DATA BOUNDARY (Phase 10): real client personal/financial data
+# (voice notes, quotes, contacts, payment receipts with bank references)
+# stays on the operator's machine. Only code, config, kit docs and synthetic
+# test fixtures (generated in temp dirs) are versioned.
+experiments/*/evidence/*
+!experiments/*/evidence/.gitkeep
+memory/commercial/
+memory/business_profiles/
